@@ -1742,6 +1742,8 @@ protected:
     uint64_t IsInline : 1;
     LLVM_PREFERRED_TYPE(bool)
     uint64_t IsInlineSpecified : 1;
+    LLVM_PREFERRED_TYPE(bool)
+    uint64_t IsCustomFunction : 1;
 
     LLVM_PREFERRED_TYPE(bool)
     uint64_t IsVirtualAsWritten : 1;
