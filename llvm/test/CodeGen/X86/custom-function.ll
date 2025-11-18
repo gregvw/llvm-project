@@ -2,7 +2,7 @@
 
 ; CHECK-LABEL: custom_fn:
 ; CHECK: .custom custom_fn
-define custom void @custom_fn() {
+define void @custom_fn() custom {
 entry:
   ret void
 }
