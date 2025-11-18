@@ -2349,12 +2349,14 @@ public:
   void setVirtualAsWritten(bool V) { FunctionDeclBits.IsVirtualAsWritten = V; }
 
   /// Whether this function is marked as custom explicitly.
+  /// Note: This reuses the FriendConstraintRefersToEnclosingTemplate bit
+  /// since custom functions and constrained friend templates are mutually exclusive.
   bool isCustom() const {
-    return FunctionDeclBits.IsCustom;
+    return FunctionDeclBits.FriendConstraintRefersToEnclosingTemplate;
   }
 
   /// State that this function is marked as custom explicitly.
-  void setCustom(bool C) { FunctionDeclBits.IsCustom = C; }
+  void setCustom(bool C) { FunctionDeclBits.FriendConstraintRefersToEnclosingTemplate = C; }
 
   /// Whether this virtual function is pure, i.e. makes the containing class
   /// abstract.
