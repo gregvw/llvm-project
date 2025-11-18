@@ -102,6 +102,9 @@ def AlwaysInline : EnumAttr<"alwaysinline", IntersectPreserve, [FnAttr]>;
 /// declaration.
 def Builtin : EnumAttr<"builtin", IntersectPreserve, [FnAttr]>;
 
+/// Function is customizable and can be replaced at link time.
+def Custom : EnumAttr<"custom", IntersectPreserve, [FnAttr]>;
+
 /// Pass structure by value.
 def ByVal : TypeAttr<"byval", IntersectPreserve, [ParamAttr]>;
 
