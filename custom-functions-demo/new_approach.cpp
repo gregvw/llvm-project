@@ -7,13 +7,10 @@
 
 namespace rvf {
   // Customizable functions that can be replaced at link time
-  // When compiled with -fcustomizable-functions, these automatically get the
-  // LLVM 'custom' attribute, which emits .custom directives in assembly
+  // The 'custom' keyword marks these functions as customizable
 
   // Inner product - default implementation for std::vector
-  // NOTE: Must not be inline for customization to work
-  __attribute__((noinline))
-  double inner_product(std::vector<double> const& v1, std::vector<double> const& v2) {
+  custom double inner_product(std::vector<double> const& v1, std::vector<double> const& v2) {
     double result = 0.0;
     for (size_t i = 0; i < v1.size(); ++i) {
       result += v1[i] * v2[i];
@@ -22,17 +19,15 @@ namespace rvf {
   }
 
   // AXPY: y = a*x + y - default implementation for std::vector
-  // NOTE: Must not be inline for customization to work
-  __attribute__((noinline))
-  void axpy(double a, std::vector<double> const& x, std::vector<double>& y) {
+  custom void axpy(double a, std::vector<double> const& x, std::vector<double>& y) {
     for (size_t i = 0; i < x.size(); ++i) {
       y[i] += a * x[i];
     }
   }
 }
 
-// When compiled with -fcustomizable-functions:
-// 1. All non-inline functions get the LLVM 'custom' attribute
+// The 'custom' keyword:
+// 1. Adds the LLVM 'custom' attribute to the function
 // 2. The backend emits '.custom <function_name>' directives in assembly
 // 3. The linker can replace these functions with alternative implementations
 // 4. This happens at link time without any runtime overhead

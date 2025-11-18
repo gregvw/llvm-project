@@ -7,8 +7,7 @@
 namespace rvf {
   // Optimized inner product with loop unrolling
   // This will replace the default implementation when linked together
-  __attribute__((noinline))
-  double inner_product(std::vector<double> const& v1, std::vector<double> const& v2) {
+  custom double inner_product(std::vector<double> const& v1, std::vector<double> const& v2) {
     std::cout << "[Using OPTIMIZED inner_product]\n";
 
     double result = 0.0;
@@ -33,8 +32,7 @@ namespace rvf {
 
   // Optimized AXPY with loop unrolling
   // This will replace the default implementation when linked together
-  __attribute__((noinline))
-  void axpy(double a, std::vector<double> const& x, std::vector<double>& y) {
+  custom void axpy(double a, std::vector<double> const& x, std::vector<double>& y) {
     std::cout << "[Using OPTIMIZED axpy]\n";
 
     size_t i = 0;

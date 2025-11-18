@@ -56,9 +56,9 @@ double dot = rvf::inner_product(x, y);
 ### Custom Functions Approach (new_approach.cpp)
 
 ```cpp
-// Define customizable function
-double inner_product(std::vector<double> const& v1,
-                    std::vector<double> const& v2) {
+// Define customizable function with 'custom' keyword
+custom double inner_product(std::vector<double> const& v1,
+                           std::vector<double> const& v2) {
   // implementation
 }
 
@@ -66,7 +66,7 @@ double inner_product(std::vector<double> const& v1,
 double dot = rvf::inner_product(x, y);
 ```
 
-**Lines of boilerplate**: 0 (just a normal function!)
+**Lines of boilerplate**: 0 (just add `custom` keyword!)
 
 ## Key Differences
 
@@ -132,16 +132,15 @@ namespace rvf {
 
 ### RealVectorFramework with Custom Functions
 ```cpp
-// Just normal functions
+// Just functions marked with 'custom' keyword
 namespace rvf {
-  Vector clone(Vector const& v);
-  void scale_in_place(double a, Vector& v);
-  void axpy_in_place(double a, Vector const& x, Vector& y);
+  custom Vector clone(Vector const& v);
+  custom void scale_in_place(double a, Vector& v);
+  custom void axpy_in_place(double a, Vector const& x, Vector& y);
   // ... 20+ more operations
 }
 
-// Compile with -fcustomizable-functions
-// Linker can swap in optimized implementations
+// Linker can swap in optimized implementations at link time
 ```
 
 ## Build Process Comparison
