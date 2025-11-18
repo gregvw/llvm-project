@@ -1,4 +1,4 @@
-; RUN: llc -mtriple=aarch64 -o - %s | FileCheck %s
+; RUN: llc -mtriple=x86_64 -o - %s | FileCheck %s
 
 ; CHECK-LABEL: custom_fn:
 ; CHECK: .custom custom_fn

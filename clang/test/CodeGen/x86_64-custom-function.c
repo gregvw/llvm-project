@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -triple aarch64 -emit-llvm -fcustomizable-functions -o - %s | FileCheck %s --check-prefix=CUSTOM
-// RUN: %clang_cc1 -triple aarch64 -emit-llvm -o - %s | FileCheck %s --check-prefix=NO-CUSTOM
+// RUN: %clang_cc1 -triple x86_64 -emit-llvm -fcustomizable-functions -o - %s | FileCheck %s --check-prefix=CUSTOM
+// RUN: %clang_cc1 -triple x86_64 -emit-llvm -o - %s | FileCheck %s --check-prefix=NO-CUSTOM
 
 // CUSTOM: define{{.*}} custom {{.*}} @foo()
 // NO-CUSTOM: define{{.*}} @foo()
