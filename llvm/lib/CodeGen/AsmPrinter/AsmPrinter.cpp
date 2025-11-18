@@ -1005,6 +1005,9 @@ void AsmPrinter::emitFunctionHeader() {
   if (F.hasFnAttribute(Attribute::Cold))
     OutStreamer->emitSymbolAttribute(CurrentFnSym, MCSA_Cold);
 
+  if (F.hasFnAttribute(Attribute::Custom))
+    OutStreamer->emitSymbolAttribute(CurrentFnSym, MCSA_Custom);
+
   // Emit the prefix data.
   if (F.hasPrefixData())
     emitFunctionPrefix({F.getPrefixData()});

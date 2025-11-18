@@ -772,6 +772,9 @@ bool MCAsmStreamer::emitSymbolAttribute(MCSymbol *Symbol,
   case MCSA_WeakDefAutoPrivate: OS << "\t.weak_def_can_be_hidden\t"; break;
   case MCSA_Cold:
     // Assemblers currently do not support a .cold directive.
+  case MCSA_Custom:
+    OS << "\t.custom\t";
+    break;
   case MCSA_Exported:
     // Non-AIX assemblers currently do not support exported visibility.
     return false;
