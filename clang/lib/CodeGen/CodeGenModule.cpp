@@ -2724,8 +2724,12 @@ void CodeGenModule::SetLLVMFunctionAttributesForDefinition(const Decl *D,
   else if (isStackProtectorOn(LangOpts, getTriple(), LangOptions::SSPReq))
     B.addAttribute(llvm::Attribute::StackProtectReq);
 
-  if (CodeGenOpts.CustomizableFunctions)
-    B.addAttribute(llvm::Attribute::Custom);
+  if (D) {
+    if (const auto *FD = dyn_cast<FunctionDecl>(D)) {
+      if (FD->isCustom())
+        B.addAttribute(llvm::Attribute::Custom);
+    }
+  }
 
   if (!D) {
     // Non-entry HLSL functions must always be inlined.

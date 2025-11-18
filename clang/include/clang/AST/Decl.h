@@ -2348,6 +2348,14 @@ public:
   /// State that this function is marked as virtual explicitly.
   void setVirtualAsWritten(bool V) { FunctionDeclBits.IsVirtualAsWritten = V; }
 
+  /// Whether this function is marked as custom explicitly.
+  bool isCustom() const {
+    return FunctionDeclBits.IsCustom;
+  }
+
+  /// State that this function is marked as custom explicitly.
+  void setCustom(bool C) { FunctionDeclBits.IsCustom = C; }
+
   /// Whether this virtual function is pure, i.e. makes the containing class
   /// abstract.
   bool isPureVirtual() const { return FunctionDeclBits.IsPureVirtual; }
