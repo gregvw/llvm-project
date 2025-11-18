@@ -1671,7 +1671,7 @@ defm coro_aligned_allocation : BoolFOption<"coro-aligned-allocation",
 
 // C++ Customizable Functions
 defm customizable_functions : BoolFOption<"customizable-functions",
-  LangOpts<"CustomizableFunctions">, DefaultFalse,
+  CodeGenOpts<"CustomizableFunctions">, DefaultFalse,
   PosFlag<SetTrue, [], [ClangOption, CC1Option],
           "Enable support for customizable functions with tag_invoke">,
   NegFlag<SetFalse, [], [ClangOption, CC1Option]>>;
