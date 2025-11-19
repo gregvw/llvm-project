@@ -6448,6 +6448,12 @@ void CodeGenModule::EmitGlobalFunctionDefinition(GlobalDecl GD,
   const CGFunctionInfo &FI = getTypes().arrangeGlobalDeclaration(GD);
   llvm::FunctionType *Ty = getTypes().GetFunctionType(FI);
 
+  // Handle customizable functions specially
+  if (D->isCustom()) {
+    EmitCustomizableFunctionDefinition(GD, FI, Ty);
+    return;
+  }
+
   // Get or create the prototype for the function.
   if (!GV || (GV->getValueType() != Ty))
     GV = cast<llvm::GlobalValue>(GetAddrOfFunction(GD, Ty, /*ForVTable=*/false,
@@ -6507,6 +6513,84 @@ void CodeGenModule::EmitGlobalFunctionDefinition(GlobalDecl GD,
     AddGlobalDtor(Fn, GetPriority(DA), true);
   if (getLangOpts().OpenMP && D->hasAttr<OMPDeclareTargetDeclAttr>())
     getOpenMPRuntime().emitDeclareTargetFunction(D, GV);
+}
+
+void CodeGenModule::EmitCustomizableFunctionDefinition(
+    GlobalDecl GD, const CGFunctionInfo &FI, llvm::FunctionType *Ty) {
+  const auto *D = cast<FunctionDecl>(GD.getDecl());
+  assert(D->isCustom() && "Expected customizable function");
+
+  // Step 1: Create the default implementation function with .default suffix
+  std::string DefaultName = (getMangledName(GD) + ".default").str();
+  llvm::Function *DefaultFn = llvm::Function::Create(
+      Ty, llvm::GlobalValue::InternalLinkage, DefaultName, &getModule());
+
+  // Set up the default function with standard attributes
+  setFunctionLinkage(GD, DefaultFn);
+  DefaultFn->setLinkage(llvm::GlobalValue::InternalLinkage);
+  setGVProperties(DefaultFn, GD);
+
+  // Generate the actual function body into the default implementation
+  CodeGenFunction(*this).GenerateCode(GD, DefaultFn, FI);
+  setNonAliasAttributes(GD, DefaultFn);
+  SetLLVMFunctionAttributesForDefinition(D, DefaultFn);
+
+  // Add metadata to mark this as the default implementation
+  llvm::LLVMContext &Ctx = getLLVMContext();
+  llvm::MDNode *DefaultMD = llvm::MDNode::get(
+      Ctx, llvm::MDString::get(Ctx, D->getName()));
+  DefaultFn->setMetadata("clang.custom.default", DefaultMD);
+
+  // Step 2: Create the public interface function (the customizable entry point)
+  llvm::Function *PublicFn = llvm::Function::Create(
+      Ty, llvm::GlobalValue::LinkOnceODRLinkage,
+      getMangledName(GD), &getModule());
+
+  setGVProperties(PublicFn, GD);
+
+  // Add attribute marking this as customizable
+  PublicFn->addFnAttr("clang-customizable-function", D->getName());
+
+  // Add metadata
+  llvm::MDNode *CustomMD = llvm::MDNode::get(
+      Ctx, llvm::MDString::get(Ctx, D->getName()));
+  PublicFn->setMetadata("clang.customizable", CustomMD);
+
+  // Step 3: Generate the wrapper body that calls the default implementation
+  llvm::BasicBlock *Entry = llvm::BasicBlock::Create(Ctx, "entry", PublicFn);
+  llvm::IRBuilder<> Builder(Entry);
+
+  // Collect arguments from the public function to pass to default
+  llvm::SmallVector<llvm::Value *, 8> Args;
+  for (llvm::Argument &Arg : PublicFn->args())
+    Args.push_back(&Arg);
+
+  // Call the default implementation
+  llvm::CallInst *Call = Builder.CreateCall(DefaultFn, Args);
+  Call->setTailCall(true);  // Optimize as tail call
+  Call->setCallingConv(DefaultFn->getCallingConv());
+
+  // Return the result
+  if (Ty->getReturnType()->isVoidTy())
+    Builder.CreateRetVoid();
+  else
+    Builder.CreateRet(Call);
+
+  // Mark the wrapper for potential inlining
+  PublicFn->addFnAttr(llvm::Attribute::InlineHint);
+
+  // Handle constructor/destructor attributes
+  auto GetPriority = [this](const auto *Attr) -> int {
+    Expr *E = Attr->getPriority();
+    if (E)
+      return E->EvaluateKnownConstInt(this->getContext()).getExtValue();
+    return Attr->DefaultPriority;
+  };
+
+  if (const ConstructorAttr *CA = D->getAttr<ConstructorAttr>())
+    AddGlobalCtor(PublicFn, GetPriority(CA));
+  if (const DestructorAttr *DA = D->getAttr<DestructorAttr>())
+    AddGlobalDtor(PublicFn, GetPriority(DA), true);
 }
 
 void CodeGenModule::EmitAliasDefinition(GlobalDecl GD) {

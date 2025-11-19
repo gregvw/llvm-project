@@ -1893,6 +1893,9 @@ private:
   void EmitGlobalDefinition(GlobalDecl D, llvm::GlobalValue *GV = nullptr);
 
   void EmitGlobalFunctionDefinition(GlobalDecl GD, llvm::GlobalValue *GV);
+  void EmitCustomizableFunctionDefinition(GlobalDecl GD,
+                                          const CGFunctionInfo &FI,
+                                          llvm::FunctionType *Ty);
   void EmitMultiVersionFunctionDefinition(GlobalDecl GD, llvm::GlobalValue *GV);
 
   void EmitGlobalVarDefinition(const VarDecl *D, bool IsTentative = false);
