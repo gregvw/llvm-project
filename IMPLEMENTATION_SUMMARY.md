@@ -12,6 +12,26 @@ The `custom` specifier is a **contextual keyword** that:
 - Remains available as an identifier elsewhere for backward compatibility
 - Is enabled via the `-fcustomizable-functions` compiler flag
 
+## Current Status
+
+**Phase 1 (Frontend & CodeGen): ✅ COMPLETE**
+
+The implementation has successfully completed the first phase:
+
+1. ✅ **Parser**: Contextual keyword recognition in declaration-specifier context
+2. ✅ **AST**: `isCustom()` flag on `FunctionDecl`
+3. ✅ **Sema**: Validation (free functions only, no inline, error diagnostics)
+4. ✅ **CodeGen**: Canonical IR representation with two-function pattern
+5. ✅ **Tests**: 10 comprehensive test files (9 CodeGen + 1 Sema)
+6. ✅ **Documentation**: Full feature documentation and release notes
+7. ✅ **Tooling**: Development script for building and testing
+
+**Next Phase (LTO Pass): 🚧 TO BE IMPLEMENTED**
+
+The LTO pass will discover and replace customizable functions at link time.
+
+See **Implementation Status** section below for detailed roadmap.
+
 ## Implementation Components
 
 ### 1. Language Option
@@ -93,6 +113,141 @@ The `custom` specifier is a **contextual keyword** that:
 **File**: `clang/docs/LanguageExtensions.rst`
 - Added `CustomizableFunctions` to language extensions toctree (line 19)
 
+### 8. CodeGen Implementation
+
+**Status**: ✅ Complete (Phase 1 - Canonical IR Representation)
+
+#### Overview
+
+The CodeGen implementation establishes a **stable canonical IR representation** for customizable functions. This two-function pattern provides the contract between Clang's frontend and future LLVM optimization passes.
+
+#### Canonical IR Structure
+
+For each `custom` function, CodeGen emits **two LLVM functions**:
+
+1. **Public Interface** (`@foo`):
+   - Linkage: `linkonce_odr` (for ODR deduplication across TUs)
+   - Visibility: Default (externally visible)
+   - Body: Tail-calls the default implementation
+   - Attribute: `"clang-customizable-function"="<name>"` for LTO pass discovery
+   - Metadata: Tagged in `!clang.customizable` module metadata
+
+2. **Default Implementation** (`@foo.default`):
+   - Linkage: `internal` (hidden from linker, per-TU scope)
+   - Visibility: Hidden
+   - Body: Contains the actual function implementation
+   - Metadata: Tagged in `!clang.custom.default` module metadata
+
+#### Example IR Output
+
+For this C++ code:
+```cpp
+custom int add(int a, int b) {
+  return a + b;
+}
+```
+
+Clang generates:
+```llvm
+; Public interface (customization point)
+define linkonce_odr i32 @_Z3addii(i32 noundef %a, i32 noundef %b) #0 {
+entry:
+  %call = tail call i32 @_Z3addii.default(i32 noundef %a, i32 noundef %b)
+  ret i32 %call
+}
+
+; Default implementation
+define internal i32 @_Z3addii.default(i32 noundef %a, i32 noundef %b) {
+entry:
+  %add = add nsw i32 %b, %a
+  ret i32 %add
+}
+
+attributes #0 = { "clang-customizable-function"="add" }
+
+!clang.customizable = !{!0}
+!clang.custom.default = !{!1}
+!0 = !{ptr @_Z3addii}
+!1 = !{ptr @_Z3addii.default}
+```
+
+#### Implementation Details
+
+**File**: `clang/include/clang/CodeGen/CodeGenModule.h`
+- Added `EmitCustomizableFunctionDefinition` method declaration (lines 1896-1898)
+
+**File**: `clang/lib/CodeGen/CodeGenModule.cpp`
+
+**Detection Logic** (lines 6451-6455 in `EmitGlobalFunctionDefinition`):
+```cpp
+// Handle customizable functions specially
+if (D->isCustom()) {
+  EmitCustomizableFunctionDefinition(GD, FI, Ty);
+  return;
+}
+```
+
+**Emission Logic** (lines 6518-6594 in `EmitCustomizableFunctionDefinition`):
+
+**Step 1**: Create default implementation function
+- Construct mangled name with `.default` suffix
+- Use `internal` linkage for per-TU scope
+- Copy all original attributes and calling conventions
+
+**Step 2**: Emit function body into default implementation
+- Reuse existing `CodeGenFunction` machinery
+- Generates complete implementation IR
+
+**Step 3**: Create public interface function
+- Use `linkonce_odr` linkage for ODR compliance
+- Add `"clang-customizable-function"` attribute with unmangled name
+- Mark as `uwtable` for exception handling compatibility
+
+**Step 4**: Generate wrapper body
+- Create basic block
+- Forward all parameters to default implementation
+- Use `tail call` for zero-overhead forwarding
+- Return result (or void for void functions)
+
+**Step 5**: Add module metadata
+- Tag public function in `!clang.customizable` list
+- Tag default function in `!clang.custom.default` list
+- Enables future pass discovery and validation
+
+#### Design Rationale
+
+**Why LinkOnceODR for public interface?**
+- Allows same function defined in multiple TUs (header-only libraries)
+- Linker deduplicates to single definition per ODR
+- Future LTO pass can replace/customize at link time
+
+**Why Internal for default implementation?**
+- Prevents linker visibility and symbol conflicts
+- Each TU keeps its own default copy
+- LTO pass can inline or eliminate as needed
+
+**Why tail call?**
+- Zero runtime overhead for wrapper indirection
+- Optimizes to direct call in non-customized case
+- Maintains performance parity with non-custom functions
+
+**Why function attribute for discovery?**
+- LTO pass can quickly identify customizable functions
+- Carries unmangled name for diagnostics
+- No need to parse complex metadata graphs
+
+#### Compatibility with C++ Features
+
+The CodeGen implementation correctly handles:
+
+- **Templates**: Each instantiation gets independent wrapper+default pair
+- **Overloads**: Each overload treated as separate customizable function
+- **Namespaces**: Name mangling preserves namespace scope
+- **Constexpr**: Constexpr evaluation happens on default implementation
+- **Noexcept**: Exception specifications copied to both functions
+- **Trailing return types**: Modern C++ syntax fully supported
+- **Complex arguments**: References, structs, templates work correctly
+
 ## Design Decisions
 
 ### Contextual Keyword Approach
@@ -155,35 +310,178 @@ struct custom { int x; };  // OK
 
 ## Testing
 
-**Test File**: `test_custom.cpp`
-- Tests valid usage on free functions
-- Tests rejection on member functions
-- Tests rejection on constructors/destructors
-- Tests rejection of `custom inline` combination
+### Comprehensive Test Suite
 
-## Future Enhancements
+The implementation includes **10 test files** covering all aspects of the feature:
 
-Potential future work includes:
+#### CodeGen Tests (9 files in `clang/test/CodeGenCXX/`)
 
-1. **Member Function Support**: Allow `custom` on member functions with explicit opt-in
-2. **Module Integration**: Ensure correct behavior with C++20 modules
-3. **ABI Considerations**: Define standardized ABI for customization mechanisms
-4. **Backend Integration**: Connect to LLVM IR attributes and optimization passes
+These tests verify the canonical IR representation using FileCheck:
+
+1. **`customizable-functions-basic.cpp`**
+   - Tests basic `int` return type
+   - Verifies wrapper + default function structure
+   - Checks `linkonce_odr` and `internal` linkage
+   - Validates `"clang-customizable-function"` attribute
+   - Confirms tail call optimization
+   - Validates module metadata
+
+2. **`customizable-functions-void.cpp`**
+   - Tests `void` return type
+   - Ensures proper handling of no-return-value case
+
+3. **`customizable-functions-constexpr.cpp`**
+   - Tests `custom constexpr` combination
+   - Verifies constexpr doesn't conflict with custom
+   - Constexpr's implicit inline is allowed with custom
+
+4. **`customizable-functions-noexcept.cpp`**
+   - Tests `custom` with `noexcept` specifier
+   - Verifies exception specifications propagate correctly
+
+5. **`customizable-functions-template.cpp`**
+   - Tests function templates: `template<class T> custom T id(T x)`
+   - Verifies each instantiation gets own wrapper+default pair
+   - Checks mangling for template instantiations
+
+6. **`customizable-functions-overload.cpp`**
+   - Tests function overloading with `custom`
+   - Verifies each overload treated independently
+   - Checks distinct mangled names
+
+7. **`customizable-functions-namespace.cpp`**
+   - Tests `custom` in namespace scope
+   - Verifies correct name mangling with namespace prefix
+
+8. **`customizable-functions-trailing-return.cpp`**
+   - Tests modern C++: `custom auto get() -> int`
+   - Verifies trailing return type syntax works
+
+9. **`customizable-functions-complex-args.cpp`**
+   - Tests reference parameters: `Point& p1, Point& p2`
+   - Tests struct arguments
+   - Verifies proper parameter forwarding in wrapper
+
+#### Semantic Tests (1 file in `clang/test/SemaCXX/`)
+
+10. **`customizable-functions-errors.cpp`**
+    - Tests `custom inline` rejection (mutually exclusive)
+    - Tests `custom` on member functions (rejected)
+    - Tests `custom` on constructors (rejected)
+    - Tests `custom` on destructors (rejected)
+    - Verifies all error diagnostics work correctly
+
+### Test Execution
+
+A development script `custom-functions-dev.sh` provides convenient test execution:
+
+```bash
+# Run all tests
+./custom-functions-dev.sh test all
+
+# Run only CodeGen tests
+./custom-functions-dev.sh test codegen
+
+# Run only Sema tests
+./custom-functions-dev.sh test sema
+
+# Run specific test by pattern
+./custom-functions-dev.sh test template
+```
+
+### Test Coverage Matrix
+
+| Feature | CodeGen Test | Sema Test | Status |
+|---------|--------------|-----------|--------|
+| Basic int return | ✅ basic.cpp | - | ✅ |
+| Void return | ✅ void.cpp | - | ✅ |
+| With constexpr | ✅ constexpr.cpp | - | ✅ |
+| With noexcept | ✅ noexcept.cpp | - | ✅ |
+| Templates | ✅ template.cpp | - | ✅ |
+| Overloads | ✅ overload.cpp | - | ✅ |
+| Namespaces | ✅ namespace.cpp | - | ✅ |
+| Trailing return | ✅ trailing-return.cpp | - | ✅ |
+| Complex args | ✅ complex-args.cpp | - | ✅ |
+| Error: inline | - | ✅ errors.cpp | ✅ |
+| Error: member | - | ✅ errors.cpp | ✅ |
+| Error: ctor | - | ✅ errors.cpp | ✅ |
+| Error: dtor | - | ✅ errors.cpp | ✅ |
+
+## Implementation Status
+
+### Phase 1: Frontend & CodeGen ✅ COMPLETE
+
+- ✅ Contextual keyword parsing
+- ✅ AST representation (`isCustom()` flag)
+- ✅ Semantic validation (free functions only, no inline)
+- ✅ Diagnostic messages
+- ✅ Documentation
+- ✅ **CodeGen: Canonical IR representation**
+- ✅ **Comprehensive test suite (10 files)**
+
+### Phase 2: LTO Pass 🚧 NEXT
+
+**Goal**: Implement `CustomizableFunctionsPass` in LLVM
+
+**Tasks**:
+1. Create new ModulePass in `llvm/lib/Transforms/IPO/`
+2. Discover customizable functions via `"clang-customizable-function"` attribute
+3. Find override functions (same signature, different name)
+4. Validate signature compatibility
+5. Replace calls from `@foo` → `@foo.override`
+6. Add pass to default LTO pipeline
+7. End-to-end testing with override functions
+
+**IR Contract** (already established by CodeGen):
+- Public interface: `linkonce_odr` with attribute
+- Default impl: `internal` with `.default` suffix
+- Module metadata for discovery
+
+### Phase 3: Advanced Features 📋 FUTURE
+
+Potential enhancements for later:
+
+1. **Tag Invoke Support**: Per-type customization via ADL
+   - `custom<T>` syntax for type-specific behavior
+   - Integration with C++20 concepts
+   - CPO (Customization Point Object) pattern
+
+2. **Member Function Support**: Allow `custom` on member functions
+   - Interaction with virtual dispatch
+   - Explicit opt-in to avoid confusion
+
+3. **Module Integration**: Ensure correct behavior with C++20 modules
+   - Module boundary semantics
+   - Import/export of customizable functions
+
+4. **ABI Standardization**: Define stable ABI for customization
+   - Cross-compiler compatibility
+   - Version compatibility
+
 5. **Feature Detection**: Add `__has_feature(customizable_functions)` support
 
 ## Integration Points
 
-### CodeGen
-The `isCustom()` flag on `FunctionDecl` should be propagated to:
-- LLVM IR function attributes
-- Object file annotations
-- Debug information
+### CodeGen ✅ IMPLEMENTED
+The `isCustom()` flag on `FunctionDecl` is now propagated to:
+- ✅ LLVM IR function attributes (`"clang-customizable-function"="<name>"`)
+- ✅ Module metadata (`!clang.customizable`, `!clang.custom.default`)
+- ✅ Two-function IR structure (public interface + default implementation)
+
+See Section 8 for complete CodeGen implementation details.
+
+### LTO Pass 🚧 TO BE IMPLEMENTED
+Future LTO pass will:
+- Discover customizable functions via IR attributes
+- Find and validate override functions
+- Replace calls to use override implementations
+- Optimize away unused default implementations
 
 ### Linker
-The linker should recognize customizable functions and:
-- Allow multiple definitions (with appropriate ODR handling)
-- Support symbol replacement strategies
-- Maintain metadata for runtime patching
+The linker (via LTO) will:
+- Deduplicate `linkonce_odr` public interfaces across TUs
+- Allow override functions to replace default implementations
+- Support whole-program optimization of customizable functions
 
 ## References
 
@@ -195,38 +493,92 @@ The linker should recognize customizable functions and:
 ## Commit Information
 
 **Branch**: `claude/add-custom-specifier-01RpdbysckXoep87ka238LBB`
-**Commit Hash**: 058677009
+**Latest Commit**: ef0ba45fa (Implement canonical IR representation for custom functions)
 **Date**: 2025-11-19
 
 ### Files Modified
-1. `clang/include/clang/Basic/LangOptions.def`
-2. `clang/include/clang/Sema/DeclSpec.h`
-3. `clang/lib/Sema/DeclSpec.cpp`
-4. `clang/include/clang/AST/DeclBase.h`
-5. `clang/include/clang/AST/Decl.h`
-6. `clang/lib/Parse/ParseDecl.cpp`
-7. `clang/lib/Sema/SemaDecl.cpp`
-8. `clang/include/clang/Basic/DiagnosticSemaKinds.td`
+
+#### Frontend Implementation
+1. `clang/include/clang/Basic/LangOptions.def` - Added CustomizableFunctions option
+2. `clang/include/clang/Sema/DeclSpec.h` - Added FS_custom_specified
+3. `clang/lib/Sema/DeclSpec.cpp` - Implemented setFunctionSpecCustom()
+4. `clang/include/clang/AST/DeclBase.h` - Added IsCustom bit
+5. `clang/include/clang/AST/Decl.h` - Added isCustom()/setCustom()
+6. `clang/lib/Parse/ParseDecl.cpp` - Contextual keyword parsing
+7. `clang/lib/Sema/SemaDecl.cpp` - Semantic validation
+8. `clang/include/clang/Basic/DiagnosticSemaKinds.td` - Error diagnostics
+
+#### CodeGen Implementation ✨ NEW
+9. `clang/include/clang/CodeGen/CodeGenModule.h` (lines 1896-1898) - Added EmitCustomizableFunctionDefinition
+10. `clang/lib/CodeGen/CodeGenModule.cpp` (lines 6451-6455, 6518-6594) - Canonical IR emission
 
 ### Documentation Added
-1. `clang/docs/CustomizableFunctions.rst`
-2. `clang/docs/ReleaseNotes.rst` (updated)
-3. `clang/docs/index.rst` (updated)
-4. `clang/docs/LanguageExtensions.rst` (updated)
+1. `clang/docs/CustomizableFunctions.rst` - Feature documentation
+2. `clang/docs/ReleaseNotes.rst` (updated) - Release notes
+3. `clang/docs/index.rst` (updated) - Documentation index
+4. `clang/docs/LanguageExtensions.rst` (updated) - Extensions list
+
+### Test Files Added ✨ NEW
+
+#### CodeGen Tests (9 files)
+1. `clang/test/CodeGenCXX/customizable-functions-basic.cpp`
+2. `clang/test/CodeGenCXX/customizable-functions-void.cpp`
+3. `clang/test/CodeGenCXX/customizable-functions-constexpr.cpp`
+4. `clang/test/CodeGenCXX/customizable-functions-noexcept.cpp`
+5. `clang/test/CodeGenCXX/customizable-functions-template.cpp`
+6. `clang/test/CodeGenCXX/customizable-functions-overload.cpp`
+7. `clang/test/CodeGenCXX/customizable-functions-namespace.cpp`
+8. `clang/test/CodeGenCXX/customizable-functions-trailing-return.cpp`
+9. `clang/test/CodeGenCXX/customizable-functions-complex-args.cpp`
+
+#### Semantic Tests (1 file)
+10. `clang/test/SemaCXX/customizable-functions-errors.cpp`
+
+### Development Tools
+- `custom-functions-dev.sh` - Build and test automation script
 
 ## Build Instructions
 
+### Quick Start (Using Development Script)
+
+```bash
+# Configure for debug build
+./custom-functions-dev.sh configure debug
+
+# Build clang
+./custom-functions-dev.sh build
+
+# Run all tests
+./custom-functions-dev.sh test all
+
+# Run only CodeGen tests
+./custom-functions-dev.sh test codegen
+
+# Get help
+./custom-functions-dev.sh help
+```
+
+### Manual Build
+
 ```bash
 # Configure CMake
-cmake -S llvm -B build -G Ninja \
+cmake -S llvm -B build-custom-functions -G Ninja \
   -DLLVM_ENABLE_PROJECTS=clang \
-  -DCMAKE_BUILD_TYPE=Release
+  -DLLVM_TARGETS_TO_BUILD=X86 \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DLLVM_ENABLE_ASSERTIONS=ON
 
 # Build
-cmake --build build
+cmake --build build-custom-functions -j$(nproc)
 
-# Test
-./build/bin/clang++ -fcustomizable-functions test_custom.cpp
+# Test with clang
+./build-custom-functions/bin/clang++ -fcustomizable-functions \
+  -std=c++20 -emit-llvm -S -o test.ll test.cpp
+
+# Run lit tests
+./build-custom-functions/bin/llvm-lit -v \
+  clang/test/CodeGenCXX/customizable-functions-*.cpp \
+  clang/test/SemaCXX/customizable-functions-errors.cpp
 ```
 
 ## Contact
