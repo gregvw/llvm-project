@@ -190,9 +190,41 @@ int bar() { return 42; }
 - With `-fcustomizable-functions`: Functions get `custom` attribute
 - Without flag: Functions don't get `custom` attribute
 
+#### `clang/test/Sema/custom-inline-conflict.cpp`
+**New file**: Diagnostic test for mutually exclusive specifiers
+```cpp
+// Tests that custom and inline cannot be used together
+
+inline custom void foo();  // error
+custom inline void bar();  // error
+
+custom void baz();  // OK
+inline void qux();  // OK
+```
+
+**Checks**:
+- Error when both `custom` and `inline` are specified
+- Suggests removing `inline` with FixItHint
+- Both orderings (`inline custom` and `custom inline`) are caught
+
 ---
 
-### 9. Demo/Documentation
+### 9. Diagnostics
+
+#### `clang/include/clang/Basic/DiagnosticSemaKinds.td`
+**Modified**: Added error for conflicting specifiers
+- **Line 6372-6373**: `err_custom_inline_function` diagnostic
+- Message: "'custom' and 'inline' cannot both be specified"
+
+#### `clang/lib/Sema/SemaDecl.cpp`
+**Modified**: Check for conflicting specifiers
+- **Lines 10309-10315**: Detect when both `isCustom` and `isInline` are true
+- Emit error with suggestion to remove `inline`
+- Rationale: Custom functions are replaced at link time, incompatible with inlining
+
+---
+
+### 10. Demo/Documentation
 
 #### `custom-functions-demo/`
 **New directory**: Demonstration comparing approaches
@@ -375,11 +407,7 @@ Currently requires `-fcustomizable-functions` flag. Could add:
 
 This would allow per-file or per-function customization without flag.
 
-### 3. No Interaction with Inline
-
-`custom` and `inline` are not explicitly made mutually exclusive, though logically they should be (can't replace an inlined function). Future work could add diagnostic.
-
-### 4. No Cross-Module Testing
+### 3. No Cross-Module Testing
 
 Tests only verify single translation unit. Real-world use requires:
 - Multiple object files with different `custom` implementations
@@ -431,15 +459,19 @@ export custom double sqrt(double x);
 10. `9054b490c` - Implement 'custom' keyword for marking customizable functions
 11. `78c186dd9` - Update demo to use 'custom' keyword instead of flag-based approach
 12. `f41973156` - Fix: Reuse FriendConstraintRefersToEnclosingTemplate bit for IsCustom
+13. `ff74b6ec9` - Add comprehensive implementation summary for code review
+14. `9aca8e2a0` - Add quick testing guide for reviewers
+15. `29458f823` - Add diagnostic for mutually exclusive 'custom' and 'inline' specifiers
 
 ---
 
 ## Code Review Checklist
 
-- [ ] All tests pass (LLVM IR and Clang tests)
+- [ ] All tests pass (LLVM IR, Clang, and Sema tests)
 - [ ] Manual testing confirms `.custom` directive emission
 - [ ] No increase in AST node sizes (32-bit limit maintained)
 - [ ] Consistent with existing language features (`virtual`, `inline`)
+- [ ] Diagnostics prevent invalid usage (`custom` with `inline`)
 - [ ] Documentation clear and complete
 - [ ] Demo shows real-world use case
 - [ ] No breaking changes to existing code
@@ -454,7 +486,7 @@ export custom double sqrt(double x);
 
 2. **Keyword vs Attribute**: Should this be a keyword (`custom`) or a C++ attribute (`[[clang::customizable]]`)?
 
-3. **Mutual exclusion**: Should `custom` and `inline` be made mutually exclusive with a diagnostic?
+3. **Virtual functions**: Should `custom virtual` also be diagnosed as an error? (Similar to `inline custom`)
 
 4. **Linker integration**: What's the preferred approach for linker support (LLD modification vs new directive)?
 
