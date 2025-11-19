@@ -1679,6 +1679,12 @@ defm experimental_library : BoolFOption<"experimental-library",
           "of features that will ship in the future for experimentation purposes">,
   NegFlag<SetFalse>>;
 
+defm customizable_functions : BoolFOption<"customizable-functions",
+  LangOpts<"CustomizableFunctions">, DefaultFalse,
+  PosFlag<SetTrue, [], [ClangOption, CC1Option],
+          "Enable support for customizable functions">,
+  NegFlag<SetFalse>>;
+
 def fembed_offload_object_EQ : Joined<["-"], "fembed-offload-object=">,
   Group<f_Group>, Flags<[NoXarchOption]>,
   Visibility<[ClangOption, CC1Option, FC1Option]>,
