@@ -6369,6 +6369,8 @@ def err_inline_decl_follows_def : Error<
   "inline declaration of %0 follows non-inline definition">;
 def err_inline_declaration_block_scope : Error<
   "inline declaration of %0 not allowed in block scope">;
+def err_custom_inline_function : Error<
+  "'custom' and 'inline' cannot both be specified">;
 def err_static_non_static : Error<
   "static declaration of %0 follows non-static declaration">;
 def err_different_language_linkage : Error<

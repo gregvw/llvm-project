@@ -10306,6 +10306,14 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
       }
     }
 
+    // Custom and inline are mutually exclusive - a custom function is meant
+    // to be replaced at link time, which is incompatible with inlining.
+    if (isCustom && isInline && !NewFD->isInvalidDecl()) {
+      Diag(D.getDeclSpec().getCustomSpecLoc(),
+           diag::err_custom_inline_function)
+        << FixItHint::CreateRemoval(D.getDeclSpec().getInlineSpecLoc());
+    }
+
     // C++ [dcl.fct.spec]p6:
     //  The explicit specifier shall be used only in the declaration of a
     //  constructor or conversion function within its class definition;
