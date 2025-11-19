@@ -6520,21 +6520,10 @@ void CodeGenModule::EmitCustomizableFunctionDefinition(
   const auto *D = cast<FunctionDecl>(GD.getDecl());
   assert(D->isCustom() && "Expected customizable function");
 
-  // Step 1: Create the default implementation function with .default suffix
-  std::string DefaultName = (getMangledName(GD) + ".default").str();
-  llvm::Function *DefaultFn = llvm::Function::Create(
-      Ty, llvm::GlobalValue::InternalLinkage, DefaultName, &getModule());
+  llvm::LLVMContext &Ctx = getLLVMContext();
 
-  // Set basic properties for the default function
-  // Note: We don't call setFunctionLinkage here because we want internal linkage
-  setGVProperties(DefaultFn, GD);
-
-  // Generate the actual function body into the default implementation
-  CodeGenFunction(*this).GenerateCode(GD, DefaultFn, FI);
-  setNonAliasAttributes(GD, DefaultFn);
-  SetLLVMFunctionAttributesForDefinition(D, DefaultFn);
-
-  // Step 2: Create the public interface function (the customizable entry point)
+  // Step 1: Create the public interface function (the customizable entry point)
+  // Create this FIRST so it appears first in the IR
   llvm::Function *PublicFn = llvm::Function::Create(
       Ty, llvm::GlobalValue::LinkOnceODRLinkage,
       getMangledName(GD), &getModule());
@@ -6544,8 +6533,18 @@ void CodeGenModule::EmitCustomizableFunctionDefinition(
   // Add attribute marking this as customizable
   PublicFn->addFnAttr("clang-customizable-function", D->getName());
 
+  // Mark the wrapper for potential inlining
+  PublicFn->addFnAttr(llvm::Attribute::InlineHint);
+
+  // Step 2: Create the default implementation function with .default suffix
+  std::string DefaultName = (getMangledName(GD) + ".default").str();
+  llvm::Function *DefaultFn = llvm::Function::Create(
+      Ty, llvm::GlobalValue::InternalLinkage, DefaultName, &getModule());
+
+  // Set basic properties for the default function
+  setGVProperties(DefaultFn, GD);
+
   // Step 3: Generate the wrapper body that calls the default implementation
-  llvm::LLVMContext &Ctx = getLLVMContext();
   llvm::BasicBlock *Entry = llvm::BasicBlock::Create(Ctx, "entry", PublicFn);
   llvm::IRBuilder<> Builder(Entry);
 
@@ -6565,10 +6564,12 @@ void CodeGenModule::EmitCustomizableFunctionDefinition(
   else
     Builder.CreateRet(Call);
 
-  // Mark the wrapper for potential inlining
-  PublicFn->addFnAttr(llvm::Attribute::InlineHint);
+  // Step 4: Generate the actual function body into the default implementation
+  CodeGenFunction(*this).GenerateCode(GD, DefaultFn, FI);
+  setNonAliasAttributes(GD, DefaultFn);
+  SetLLVMFunctionAttributesForDefinition(D, DefaultFn);
 
-  // Handle constructor/destructor attributes
+  // Handle constructor/destructor attributes on the public function
   auto GetPriority = [this](const auto *Attr) -> int {
     Expr *E = Attr->getPriority();
     if (E)
