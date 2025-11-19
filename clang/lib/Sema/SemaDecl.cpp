@@ -10087,7 +10087,15 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
     bool isInline = D.getDeclSpec().isInlineSpecified();
     bool isVirtual = D.getDeclSpec().isVirtualSpecified();
     bool hasExplicit = D.getDeclSpec().hasExplicitSpecifier();
+    bool isCustom = D.getDeclSpec().isCustomSpecified();
     isFriend = D.getDeclSpec().isFriendSpecified();
+
+    // Check for invalid combination of 'custom' and 'inline'
+    if (isCustom && isInline) {
+      Diag(D.getDeclSpec().getCustomSpecLoc(), diag::err_custom_with_inline);
+      NewFD->setInvalidDecl();
+    }
+
     if (ImplicitInlineCXX20 && isFriend && D.isFunctionDefinition()) {
       // Pre-C++20 [class.friend]p5
       //   A function can be defined in a friend declaration of a
@@ -10112,12 +10120,36 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
         Diag(D.getDeclSpec().getVirtualSpecLoc(), diag::err_virtual_in_union);
         NewFD->setInvalidDecl();
       }
+
+      // Check for 'custom' on member functions
+      if (D.getDeclSpec().isCustomSpecified()) {
+        // 'custom' is only allowed on free functions, not member functions
+        if (isa<CXXConstructorDecl>(NewFD)) {
+          Diag(D.getDeclSpec().getCustomSpecLoc(),
+               diag::err_custom_on_special_member) << 0;
+          NewFD->setInvalidDecl();
+        } else if (isa<CXXDestructorDecl>(NewFD)) {
+          Diag(D.getDeclSpec().getCustomSpecLoc(),
+               diag::err_custom_on_special_member) << 1;
+          NewFD->setInvalidDecl();
+        } else {
+          Diag(D.getDeclSpec().getCustomSpecLoc(),
+               diag::err_custom_on_member_function);
+          NewFD->setInvalidDecl();
+        }
+      }
+
       if ((Parent->isClass() || Parent->isStruct()) &&
           Parent->hasAttr<SYCLSpecialClassAttr>() &&
           NewFD->getKind() == Decl::Kind::CXXMethod && NewFD->getIdentifier() &&
           NewFD->getName() == "__init" && D.isFunctionDefinition()) {
         if (auto *Def = Parent->getDefinition())
           Def->setInitMethod(true);
+      }
+    } else {
+      // For non-member (free) functions, set the custom flag if specified
+      if (isCustom && !NewFD->isInvalidDecl()) {
+        NewFD->setCustom(true);
       }
     }
 

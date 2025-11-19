@@ -3750,6 +3750,14 @@ void Parser::ParseDeclarationSpecifiers(
     case tok::kw_decltype:
     case tok::identifier:
     ParseIdentifier: {
+      // Check for contextual 'custom' function-specifier keyword
+      if (getLangOpts().CPlusPlus && getLangOpts().CustomizableFunctions &&
+          Tok.is(tok::identifier) &&
+          Tok.getIdentifierInfo()->isStr("custom")) {
+        isInvalid = DS.setFunctionSpecCustom(Loc, PrevSpec, DiagID);
+        break;
+      }
+
       // This identifier can only be a typedef name if we haven't already seen
       // a type-specifier.  Without this check we misparse:
       //  typedef int X; struct Y { short X; };  as 'short int'.
