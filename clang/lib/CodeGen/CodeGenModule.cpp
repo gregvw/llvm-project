@@ -6525,21 +6525,14 @@ void CodeGenModule::EmitCustomizableFunctionDefinition(
   llvm::Function *DefaultFn = llvm::Function::Create(
       Ty, llvm::GlobalValue::InternalLinkage, DefaultName, &getModule());
 
-  // Set up the default function with standard attributes
-  setFunctionLinkage(GD, DefaultFn);
-  DefaultFn->setLinkage(llvm::GlobalValue::InternalLinkage);
+  // Set basic properties for the default function
+  // Note: We don't call setFunctionLinkage here because we want internal linkage
   setGVProperties(DefaultFn, GD);
 
   // Generate the actual function body into the default implementation
   CodeGenFunction(*this).GenerateCode(GD, DefaultFn, FI);
   setNonAliasAttributes(GD, DefaultFn);
   SetLLVMFunctionAttributesForDefinition(D, DefaultFn);
-
-  // Add metadata to mark this as the default implementation
-  llvm::LLVMContext &Ctx = getLLVMContext();
-  llvm::MDNode *DefaultMD = llvm::MDNode::get(
-      Ctx, llvm::MDString::get(Ctx, D->getName()));
-  DefaultFn->setMetadata("clang.custom.default", DefaultMD);
 
   // Step 2: Create the public interface function (the customizable entry point)
   llvm::Function *PublicFn = llvm::Function::Create(
@@ -6551,12 +6544,8 @@ void CodeGenModule::EmitCustomizableFunctionDefinition(
   // Add attribute marking this as customizable
   PublicFn->addFnAttr("clang-customizable-function", D->getName());
 
-  // Add metadata
-  llvm::MDNode *CustomMD = llvm::MDNode::get(
-      Ctx, llvm::MDString::get(Ctx, D->getName()));
-  PublicFn->setMetadata("clang.customizable", CustomMD);
-
   // Step 3: Generate the wrapper body that calls the default implementation
+  llvm::LLVMContext &Ctx = getLLVMContext();
   llvm::BasicBlock *Entry = llvm::BasicBlock::Create(Ctx, "entry", PublicFn);
   llvm::IRBuilder<> Builder(Entry);
 
@@ -6591,6 +6580,17 @@ void CodeGenModule::EmitCustomizableFunctionDefinition(
     AddGlobalCtor(PublicFn, GetPriority(CA));
   if (const DestructorAttr *DA = D->getAttr<DestructorAttr>())
     AddGlobalDtor(PublicFn, GetPriority(DA), true);
+
+  // Add module-level named metadata to tag customizable functions
+  llvm::NamedMDNode *CustomizableNMD =
+      getModule().getOrInsertNamedMetadata("clang.customizable");
+  llvm::Metadata *PublicMDs[] = {llvm::ConstantAsMetadata::get(PublicFn)};
+  CustomizableNMD->addOperand(llvm::MDNode::get(Ctx, PublicMDs));
+
+  llvm::NamedMDNode *DefaultNMD =
+      getModule().getOrInsertNamedMetadata("clang.custom.default");
+  llvm::Metadata *DefaultMDs[] = {llvm::ConstantAsMetadata::get(DefaultFn)};
+  DefaultNMD->addOperand(llvm::MDNode::get(Ctx, DefaultMDs));
 }
 
 void CodeGenModule::EmitAliasDefinition(GlobalDecl GD) {
