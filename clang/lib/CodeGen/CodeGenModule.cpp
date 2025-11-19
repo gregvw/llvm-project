@@ -6530,6 +6530,16 @@ void CodeGenModule::EmitCustomizableFunctionDefinition(
 
   setGVProperties(PublicFn, GD);
 
+  // Apply proper attributes from CGFunctionInfo to ensure parameters have
+  // correct attributes like 'noundef', and the function has correct calling conv
+  llvm::AttributeList Attrs;
+  unsigned CallingConv;
+  CGCalleeInfo CalleeInfo(D->getType()->getAs<FunctionProtoType>(), D);
+  ConstructAttributeList(PublicFn->getName(), FI, CalleeInfo, Attrs, CallingConv,
+                         /*AttrOnCallSite=*/false, /*IsThunk=*/false);
+  PublicFn->setAttributes(Attrs);
+  PublicFn->setCallingConv(static_cast<llvm::CallingConv::ID>(CallingConv));
+
   // Add attribute marking this as customizable
   PublicFn->addFnAttr("clang-customizable-function", D->getName());
 
