@@ -10149,7 +10149,14 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
     } else {
       // For non-member (free) functions, set the custom flag if specified
       if (isCustom && !NewFD->isInvalidDecl()) {
-        NewFD->setCustom(true);
+        // Check that custom and inline are not combined
+        if (D.getDeclSpec().isInlineSpecified()) {
+          Diag(D.getDeclSpec().getCustomSpecLoc(),
+               diag::err_custom_with_inline);
+          NewFD->setInvalidDecl();
+        } else {
+          NewFD->setCustom(true);
+        }
       }
     }
 
