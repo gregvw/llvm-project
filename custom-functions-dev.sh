@@ -107,6 +107,9 @@ ${GREEN}Test Categories:${NC}
                           - customizable-functions-namespace.cpp
                           - customizable-functions-trailing-return.cpp
                           - customizable-functions-complex-args.cpp
+                          - customizable-functions-declaration-only.cpp
+                          - customizable-functions-extern-c.cpp
+                          - customizable-functions-unaffected.cpp
 
   ${YELLOW}test sema${NC}             Run SemaCXX tests:
                           - customizable-functions-errors.cpp
@@ -295,7 +298,10 @@ run_tests() {
                 "${LLVM_DIR}/clang/test/CodeGenCXX/customizable-functions-overload.cpp" \
                 "${LLVM_DIR}/clang/test/CodeGenCXX/customizable-functions-namespace.cpp" \
                 "${LLVM_DIR}/clang/test/CodeGenCXX/customizable-functions-trailing-return.cpp" \
-                "${LLVM_DIR}/clang/test/CodeGenCXX/customizable-functions-complex-args.cpp"
+                "${LLVM_DIR}/clang/test/CodeGenCXX/customizable-functions-complex-args.cpp" \
+                "${LLVM_DIR}/clang/test/CodeGenCXX/customizable-functions-declaration-only.cpp" \
+                "${LLVM_DIR}/clang/test/CodeGenCXX/customizable-functions-extern-c.cpp" \
+                "${LLVM_DIR}/clang/test/CodeGenCXX/customizable-functions-unaffected.cpp"
 
             echo ""
             print_info "Sema tests..."
@@ -314,7 +320,10 @@ run_tests() {
                 "${LLVM_DIR}/clang/test/CodeGenCXX/customizable-functions-overload.cpp" \
                 "${LLVM_DIR}/clang/test/CodeGenCXX/customizable-functions-namespace.cpp" \
                 "${LLVM_DIR}/clang/test/CodeGenCXX/customizable-functions-trailing-return.cpp" \
-                "${LLVM_DIR}/clang/test/CodeGenCXX/customizable-functions-complex-args.cpp"
+                "${LLVM_DIR}/clang/test/CodeGenCXX/customizable-functions-complex-args.cpp" \
+                "${LLVM_DIR}/clang/test/CodeGenCXX/customizable-functions-declaration-only.cpp" \
+                "${LLVM_DIR}/clang/test/CodeGenCXX/customizable-functions-extern-c.cpp" \
+                "${LLVM_DIR}/clang/test/CodeGenCXX/customizable-functions-unaffected.cpp"
             ;;
 
         sema)
