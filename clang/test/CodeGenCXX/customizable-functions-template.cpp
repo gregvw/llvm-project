@@ -19,6 +19,6 @@ double use_double(double x) {
   return id(x);
 }
 
-// CHECK-DAG: attributes #[[ATTR_INT]] = {{{.*}}"clang-customizable-function"="id"
+// CHECK-DAG: attributes #[[ATTR_INT]] = {{{.*}}"clang-customizable-function"="id"{{.*}}}
 
-// CHECK-DAG: attributes #[[ATTR_DOUBLE]] = {{{.*}}"clang-customizable-function"="id"
+// CHECK-DAG: attributes #[[ATTR_DOUBLE]] = {{{.*}}"clang-customizable-function"="id"{{.*}}}
