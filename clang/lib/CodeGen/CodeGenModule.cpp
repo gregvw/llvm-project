@@ -6586,7 +6586,7 @@ void CodeGenModule::EmitCustomizableFunctionDefinition(
     Args.push_back(&Arg);
 
   // Call the default implementation
-  llvm::CallInst *Call = Builder.CreateCall(DefaultFn, Args);
+  llvm::CallInst *Call = Builder.CreateCall(DefaultFn, Args, "call");
   Call->setTailCall(true);  // Optimize as tail call
   Call->setCallingConv(DefaultFn->getCallingConv());
 
