@@ -3754,7 +3754,9 @@ void Parser::ParseDeclarationSpecifiers(
       if (getLangOpts().CPlusPlus && getLangOpts().CustomizableFunctions &&
           Tok.is(tok::identifier) &&
           Tok.getIdentifierInfo()->isStr("custom")) {
+        ConsumeToken();
         isInvalid = DS.setFunctionSpecCustom(Loc, PrevSpec, DiagID);
+        ConsumedEnd = PrevTokLocation;
         break;
       }
 
