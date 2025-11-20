@@ -9,6 +9,7 @@ add_llvm_component_library(LLVMipo
   CalledValuePropagation.cpp
   ConstantMerge.cpp
   CrossDSOCFI.cpp
+  CustomizableFunctions.cpp
   DeadArgumentElimination.cpp
   ElimAvailExtern.cpp
   EmbedBitcodePass.cpp
