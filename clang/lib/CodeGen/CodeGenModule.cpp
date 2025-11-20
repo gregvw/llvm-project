@@ -6527,8 +6527,11 @@ void CodeGenModule::EmitCustomizableFunctionDefinition(
   // as the public interface function (the customizable entry point)
   llvm::Function *PublicFn = cast<llvm::Function>(GV);
 
-  // Ensure it has the right linkage
-  PublicFn->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
+  // Set linkage and properties properly (important for templates)
+  setFunctionLinkage(GD, PublicFn);
+  setGVProperties(PublicFn, GD);
+  MaybeHandleStaticInExternC(D, PublicFn);
+  maybeSetTrivialComdat(*D, *PublicFn);
 
   // Apply proper attributes from CGFunctionInfo to ensure parameters have
   // correct attributes like 'noundef', and the function has correct calling conv
@@ -6597,6 +6600,10 @@ void CodeGenModule::EmitCustomizableFunctionDefinition(
     Builder.CreateRetVoid();
   else
     Builder.CreateRet(Call);
+
+  // Set non-alias attributes on the wrapper
+  setNonAliasAttributes(GD, PublicFn);
+  SetLLVMFunctionAttributesForDefinition(D, PublicFn);
 
   // Step 4: Generate the actual function body into the default implementation
   CodeGenFunction(*this).GenerateCode(GD, DefaultFn, FI);
