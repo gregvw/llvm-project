@@ -6578,8 +6578,7 @@ void CodeGenModule::EmitCustomizableFunctionDefinition(
                          DefaultCallingConv, /*AttrOnCallSite=*/false,
                          /*IsThunk=*/false);
   // Remove noundef from return type (we don't want noundef on return type of .default)
-  DefaultAttrs = DefaultAttrs.removeAttribute(Ctx, llvm::AttributeList::ReturnIndex,
-                                               "noundef");
+  DefaultAttrs = DefaultAttrs.removeRetAttribute(Ctx, llvm::Attribute::NoUndef);
   DefaultFn->setAttributes(DefaultAttrs);
   DefaultFn->setCallingConv(static_cast<llvm::CallingConv::ID>(DefaultCallingConv));
 
