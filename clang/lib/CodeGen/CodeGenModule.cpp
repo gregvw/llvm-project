@@ -6448,17 +6448,17 @@ void CodeGenModule::EmitGlobalFunctionDefinition(GlobalDecl GD,
   const CGFunctionInfo &FI = getTypes().arrangeGlobalDeclaration(GD);
   llvm::FunctionType *Ty = getTypes().GetFunctionType(FI);
 
-  // Handle customizable functions specially
-  if (D->isCustom()) {
-    EmitCustomizableFunctionDefinition(GD, FI, Ty);
-    return;
-  }
-
   // Get or create the prototype for the function.
   if (!GV || (GV->getValueType() != Ty))
     GV = cast<llvm::GlobalValue>(GetAddrOfFunction(GD, Ty, /*ForVTable=*/false,
                                                    /*DontDefer=*/true,
                                                    ForDefinition));
+
+  // Handle customizable functions specially
+  if (D->isCustom()) {
+    EmitCustomizableFunctionDefinition(GD, GV, FI, Ty);
+    return;
+  }
 
   // Already emitted.
   if (!GV->isDeclaration())
@@ -6516,19 +6516,19 @@ void CodeGenModule::EmitGlobalFunctionDefinition(GlobalDecl GD,
 }
 
 void CodeGenModule::EmitCustomizableFunctionDefinition(
-    GlobalDecl GD, const CGFunctionInfo &FI, llvm::FunctionType *Ty) {
+    GlobalDecl GD, llvm::GlobalValue *GV, const CGFunctionInfo &FI,
+    llvm::FunctionType *Ty) {
   const auto *D = cast<FunctionDecl>(GD.getDecl());
   assert(D->isCustom() && "Expected customizable function");
 
   llvm::LLVMContext &Ctx = getLLVMContext();
 
-  // Step 1: Create the public interface function (the customizable entry point)
-  // Create this FIRST so it appears first in the IR
-  llvm::Function *PublicFn = llvm::Function::Create(
-      Ty, llvm::GlobalValue::LinkOnceODRLinkage,
-      getMangledName(GD), &getModule());
+  // Step 1: Use the existing function declaration (from GetAddrOfFunction)
+  // as the public interface function (the customizable entry point)
+  llvm::Function *PublicFn = cast<llvm::Function>(GV);
 
-  setGVProperties(PublicFn, GD);
+  // Ensure it has the right linkage
+  PublicFn->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
 
   // Apply proper attributes from CGFunctionInfo to ensure parameters have
   // correct attributes like 'noundef', and the function has correct calling conv

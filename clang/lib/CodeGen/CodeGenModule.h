@@ -1894,6 +1894,7 @@ private:
 
   void EmitGlobalFunctionDefinition(GlobalDecl GD, llvm::GlobalValue *GV);
   void EmitCustomizableFunctionDefinition(GlobalDecl GD,
+                                          llvm::GlobalValue *GV,
                                           const CGFunctionInfo &FI,
                                           llvm::FunctionType *Ty);
   void EmitMultiVersionFunctionDefinition(GlobalDecl GD, llvm::GlobalValue *GV);
