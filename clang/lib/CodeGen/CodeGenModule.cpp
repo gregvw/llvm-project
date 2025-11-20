@@ -6563,9 +6563,8 @@ void CodeGenModule::EmitCustomizableFunctionDefinition(
   // Set basic properties for the default function
   setGVProperties(DefaultFn, GD);
 
-  // Apply proper attributes to the default function as well
-  DefaultFn->setAttributes(Attrs);
-  DefaultFn->setCallingConv(static_cast<llvm::CallingConv::ID>(CallingConv));
+  // Note: Don't pre-apply attributes to DefaultFn here.
+  // GenerateCode() will apply the correct attributes for the default function.
 
   // Name the parameters to match the source code parameter names
   unsigned ArgNo2 = 0;
