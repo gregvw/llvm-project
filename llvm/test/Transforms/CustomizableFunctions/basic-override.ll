@@ -4,7 +4,7 @@
 ; Logical name is "foo".
 
 define linkonce_odr i32 @_Z3fooi(i32 noundef %x)
-        #0 !clang.customizable !0 {
+        #0 {
 ; CHECK-LABEL: define linkonce_odr i32 @_Z3fooi(
 ; CHECK-SAME: #[[ATTR:[0-9]+]]
 ; CHECK:       [[NEWCALL:%.*]] = tail call i32 @__custom_override_foo(i32 noundef %x)
@@ -16,8 +16,7 @@ entry:
   ret i32 %call
 }
 
-define internal i32 @_Z3fooi.default(i32 noundef %x)
-        !clang.custom.default !0 {
+define internal i32 @_Z3fooi.default(i32 noundef %x) {
 ; CHECK: define internal i32 @_Z3fooi.default(
 ; CHECK: ret i32
 entry:
@@ -36,6 +35,7 @@ entry:
 
 attributes #0 = { "clang-customizable-function"="foo" }
 
-!0 = !{ !"foo" }
-!clang.customizable = !{ !"foo" }
-!clang.custom.default = !{ !"foo" }
+!0 = !{ptr @_Z3fooi}
+!1 = !{ptr @_Z3fooi.default}
+!clang.customizable = !{!0}
+!clang.custom.default = !{!1}
