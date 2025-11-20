@@ -6527,11 +6527,14 @@ void CodeGenModule::EmitCustomizableFunctionDefinition(
   // as the public interface function (the customizable entry point)
   llvm::Function *PublicFn = cast<llvm::Function>(GV);
 
-  // Set linkage and properties properly (important for templates)
-  setFunctionLinkage(GD, PublicFn);
+  // Set properties properly (important for templates)
   setGVProperties(PublicFn, GD);
   MaybeHandleStaticInExternC(D, PublicFn);
   maybeSetTrivialComdat(*D, *PublicFn);
+
+  // Override linkage to be linkonce_odr for customizable functions
+  // (they need ODR linkage to allow LTO to merge definitions)
+  PublicFn->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
 
   // Apply proper attributes from CGFunctionInfo to ensure parameters have
   // correct attributes like 'noundef', and the function has correct calling conv
