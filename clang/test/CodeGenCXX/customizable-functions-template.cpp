@@ -7,6 +7,7 @@ custom T id(T x) { return x; }
 
 // CHECK-LABEL: define linkonce_odr{{.*}} i32 @_Z2idIiET_S0_(i32 noundef %x)
 // CHECK-SAME: #[[ATTR_INT:[0-9]+]]
+// CHECK-SAME: comdat
 // CHECK: entry:
 // CHECK:   %call = tail call i32 @_Z2idIiET_S0_.default(i32 %x)
 // CHECK:   ret i32 %call
@@ -19,6 +20,7 @@ int use_int(int x) {
 
 // CHECK-LABEL: define linkonce_odr{{.*}} double @_Z2idIdET_S0_(double noundef %x)
 // CHECK-SAME: #[[ATTR_DOUBLE:[0-9]+]]
+// CHECK-SAME: comdat
 // CHECK: entry:
 // CHECK:   %call = tail call double @_Z2idIdET_S0_.default(double %x)
 // CHECK:   ret double %call
