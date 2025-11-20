@@ -114,6 +114,10 @@ ${GREEN}Test Categories:${NC}
   ${YELLOW}test sema${NC}             Run SemaCXX tests:
                           - customizable-functions-errors.cpp
 
+  ${YELLOW}test llvm${NC}             Run LLVM transform tests:
+                          - basic-override.ll
+                          - no-override.ll
+
   ${YELLOW}test parse${NC}            Run Parser tests (if any)
 
   ${YELLOW}test [pattern]${NC}        Run tests matching custom pattern
@@ -243,8 +247,8 @@ build_target() {
     # When building clang, also build required test infrastructure
     local targets="${target}"
     if [ "${target}" = "clang" ]; then
-        targets="clang llvm-config FileCheck"
-        print_info "Also building test tools: llvm-config, FileCheck"
+        targets="clang opt llvm-config FileCheck"
+        print_info "Also building test tools: opt, llvm-config, FileCheck"
     fi
 
     if ninja -j "${jobs}" ${targets}; then
@@ -307,6 +311,11 @@ run_tests() {
             print_info "Sema tests..."
             ./bin/llvm-lit -v \
                 "${LLVM_DIR}/clang/test/SemaCXX/customizable-functions-errors.cpp"
+
+            echo ""
+            print_info "LLVM transform tests..."
+            ./bin/llvm-lit -v \
+                "${LLVM_DIR}/llvm/test/Transforms/CustomizableFunctions/"
             ;;
 
         codegen)
@@ -330,6 +339,12 @@ run_tests() {
             print_info "Running Sema tests only"
             ./bin/llvm-lit -v \
                 "${LLVM_DIR}/clang/test/SemaCXX/customizable-functions-errors.cpp"
+            ;;
+
+        llvm)
+            print_info "Running LLVM transform tests only"
+            ./bin/llvm-lit -v \
+                "${LLVM_DIR}/llvm/test/Transforms/CustomizableFunctions/"
             ;;
 
         parse|parser)
