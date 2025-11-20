@@ -6569,8 +6569,18 @@ void CodeGenModule::EmitCustomizableFunctionDefinition(
   // Set basic properties for the default function
   setGVProperties(DefaultFn, GD);
 
-  // Note: Don't pre-apply attributes to DefaultFn here.
-  // GenerateCode() will apply the correct attributes for the default function.
+  // Apply parameter attributes to DefaultFn (but not return attributes)
+  // The .default function should have parameter attributes like 'noundef' but
+  // should not have 'noundef' on the return type.
+  llvm::AttributeList DefaultAttrs;
+  unsigned DefaultCallingConv;
+  ConstructAttributeList(DefaultFn->getName(), FI, CalleeInfo, DefaultAttrs,
+                         DefaultCallingConv, /*AttrOnCallSite=*/false,
+                         /*IsThunk=*/false);
+  // Remove return attributes (we don't want noundef on return type)
+  DefaultAttrs = DefaultAttrs.removeRetAttrs(Ctx);
+  DefaultFn->setAttributes(DefaultAttrs);
+  DefaultFn->setCallingConv(static_cast<llvm::CallingConv::ID>(DefaultCallingConv));
 
   // Name the parameters to match the source code parameter names
   unsigned ArgNo2 = 0;
