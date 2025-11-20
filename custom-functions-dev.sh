@@ -240,8 +240,8 @@ build_target() {
     # When building clang, also build required test infrastructure
     local targets="${target}"
     if [ "${target}" = "clang" ]; then
-        targets="clang llvm-config llvm-lit FileCheck"
-        print_info "Also building test tools: llvm-config, llvm-lit, FileCheck"
+        targets="clang llvm-config FileCheck"
+        print_info "Also building test tools: llvm-config, FileCheck"
     fi
 
     if ninja -j "${jobs}" ${targets}; then
@@ -251,7 +251,7 @@ build_target() {
 
         if [ "${target}" = "clang" ]; then
             print_info "Clang binary: ${BUILD_DIR}/bin/clang"
-            print_info "Test tools: llvm-config, llvm-lit, FileCheck"
+            print_info "Test tools: llvm-config, FileCheck"
         fi
     else
         print_error "Build failed"
