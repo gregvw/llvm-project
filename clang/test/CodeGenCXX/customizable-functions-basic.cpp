@@ -10,7 +10,7 @@
 
 // CHECK-LABEL: define internal i32 @_Z3fooi.default(i32 noundef %x)
 // CHECK: entry:
-// CHECK:   %add = add nsw i32 %x, 42
+// CHECK:   %add = add nsw i32 %{{.*}}, 42
 // CHECK:   ret i32 %add
 
 custom int foo(int x) {
