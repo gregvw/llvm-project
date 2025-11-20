@@ -6563,6 +6563,19 @@ void CodeGenModule::EmitCustomizableFunctionDefinition(
   // Set basic properties for the default function
   setGVProperties(DefaultFn, GD);
 
+  // Apply proper attributes to the default function as well
+  DefaultFn->setAttributes(Attrs);
+  DefaultFn->setCallingConv(static_cast<llvm::CallingConv::ID>(CallingConv));
+
+  // Name the parameters to match the source code parameter names
+  unsigned ArgNo2 = 0;
+  for (auto *Param : D->parameters()) {
+    if (ArgNo2 < DefaultFn->arg_size()) {
+      DefaultFn->getArg(ArgNo2)->setName(Param->getName());
+    }
+    ++ArgNo2;
+  }
+
   // Step 3: Generate the wrapper body that calls the default implementation
   llvm::BasicBlock *Entry = llvm::BasicBlock::Create(Ctx, "entry", PublicFn);
   llvm::IRBuilder<> Builder(Entry);
