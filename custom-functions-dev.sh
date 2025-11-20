@@ -237,13 +237,21 @@ build_target() {
 
     local start_time=$(date +%s)
 
-    if ninja -j "${jobs}" "${target}"; then
+    # When building clang, also build required test infrastructure
+    local targets="${target}"
+    if [ "${target}" = "clang" ]; then
+        targets="clang llvm-config llvm-lit FileCheck"
+        print_info "Also building test tools: llvm-config, llvm-lit, FileCheck"
+    fi
+
+    if ninja -j "${jobs}" ${targets}; then
         local end_time=$(date +%s)
         local duration=$((end_time - start_time))
         print_success "Build complete in ${duration} seconds"
 
         if [ "${target}" = "clang" ]; then
             print_info "Clang binary: ${BUILD_DIR}/bin/clang"
+            print_info "Test tools: llvm-config, llvm-lit, FileCheck"
         fi
     else
         print_error "Build failed"
