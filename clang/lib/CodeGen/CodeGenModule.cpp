@@ -6546,6 +6546,15 @@ void CodeGenModule::EmitCustomizableFunctionDefinition(
   // Mark the wrapper for potential inlining
   PublicFn->addFnAttr(llvm::Attribute::InlineHint);
 
+  // Name the parameters to match the source code parameter names
+  unsigned ArgNo = 0;
+  for (auto *Param : D->parameters()) {
+    if (ArgNo < PublicFn->arg_size()) {
+      PublicFn->getArg(ArgNo)->setName(Param->getName());
+    }
+    ++ArgNo;
+  }
+
   // Step 2: Create the default implementation function with .default suffix
   std::string DefaultName = (getMangledName(GD) + ".default").str();
   llvm::Function *DefaultFn = llvm::Function::Create(
