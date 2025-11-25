@@ -48,48 +48,54 @@ static bool processWrapper(Function &Wrapper, Module &M) {
   auto Attr = Wrapper.getFnAttribute("clang-customizable-function");
   StringRef LogicalName = Attr.getValueAsString();
 
-  // Form the override function name. For now we use a simple convention:
-  //   "__custom_override_" + logical-name
-  // This ignores namespaces and mangling on purpose and matches our tests.
+  // Form the override function name.
   std::string OverrideName = ("__custom_override_" + LogicalName).str();
   Function *Override = M.getFunction(OverrideName);
+  
+  // We only replace if the override exists and has a definition in this module
+  // (or is available externally/linked in).
   if (!Override || Override->isDeclaration())
     return false;
 
-  // Types must match exactly for now.
-  if (Override->getFunctionType() != Wrapper.getFunctionType())
+  // Strict signature check: return type and argument types must match exactly.
+  if (Override->getFunctionType() != Wrapper.getFunctionType()) {
+    LLVM_DEBUG(dbgs() << "CustomizableFunctions: skipping wrapper "
+                      << Wrapper.getName() << " - override " << OverrideName
+                      << " has mismatching signature\n");
     return false;
+  }
 
   LLVM_DEBUG(dbgs() << "CustomizableFunctions: overriding wrapper "
                     << Wrapper.getName() << " with " << Override->getName()
                     << "\n");
 
-  // Rewrite the body of Wrapper to forward all arguments to Override.
-  // For now we discard the old body entirely.
-  BasicBlock *Entry = nullptr;
-  if (!Wrapper.empty()) {
-    // Clear existing blocks.
-    SmallVector<BasicBlock *, 8> OldBlocks;
-    for (BasicBlock &BB : Wrapper)
-      OldBlocks.push_back(&BB);
-    for (BasicBlock *BB : OldBlocks)
-      BB->eraseFromParent();
-  }
+  // Remove existing body
+  Wrapper.deleteBody();
 
-  Entry = BasicBlock::Create(M.getContext(), "entry", &Wrapper);
+  // Create new body
+  BasicBlock *Entry = BasicBlock::Create(M.getContext(), "entry", &Wrapper);
   IRBuilder<> B(Entry);
 
   SmallVector<Value *, 8> Args;
   for (Argument &Arg : Wrapper.args())
     Args.push_back(&Arg);
 
+  // Create the call to the override
   CallInst *Call = B.CreateCall(Override, Args);
+  
+  // Optimization: Use tail call if possible (usually yes for simple forwarding)
+  Call->setTailCall();
+  
+  // Propagate calling convention and attributes from the override
+  Call->setCallingConv(Override->getCallingConv());
+  Call->setAttributes(Override->getAttributes());
+
   if (Wrapper.getReturnType()->isVoidTy())
     B.CreateRetVoid();
   else
     B.CreateRet(Call);
 
-  // We modified the function body; any analysis on it is invalidated.
+  // We modified the function body
   return true;
 }
 
@@ -124,8 +130,7 @@ llvm::PassPluginLibraryInfo getCustomizableFunctionsPluginInfo() {
           }};
 }
 
-// This is used when building as a plugin. In-tree you'll instead register
-// in PassBuilder's default pipeline setup, but keeping this allows plugin use.
+// This is used when building as a plugin.
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo
 llvmGetPassPluginInfo() {
   return getCustomizableFunctionsPluginInfo();

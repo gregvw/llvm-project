@@ -316,6 +316,12 @@ run_tests() {
             print_info "LLVM transform tests..."
             ./bin/llvm-lit -v \
                 "${LLVM_DIR}/llvm/test/Transforms/CustomizableFunctions/"
+
+            echo ""
+            print_info "Integration tests..."
+            ./bin/llvm-lit -v \
+                "${LLVM_DIR}/llvm/test/Other/customizable-functions-pipeline.ll" \
+                "${LLVM_DIR}/clang/test/Driver/customizable-functions.cpp"
             ;;
 
         codegen)

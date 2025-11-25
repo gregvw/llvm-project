@@ -26,11 +26,9 @@ The implementation has successfully completed the first phase:
 6. ✅ **Documentation**: Full feature documentation and release notes
 7. ✅ **Tooling**: Development script for building and testing
 
-**Next Phase (LTO Pass): 🚧 TO BE IMPLEMENTED**
+**Phase 2 (LTO Pass): ✅ COMPLETE**
 
-The LTO pass will discover and replace customizable functions at link time.
-
-See **Implementation Status** section below for detailed roadmap.
+The LTO pass discovers and replaces customizable functions at link time.
 
 ## Implementation Components
 
@@ -248,6 +246,23 @@ The CodeGen implementation correctly handles:
 - **Trailing return types**: Modern C++ syntax fully supported
 - **Complex arguments**: References, structs, templates work correctly
 
+### 9. LTO Pass Implementation ✨ NEW
+
+**File**: `llvm/lib/Transforms/IPO/CustomizableFunctions.cpp`
+- Implemented `CustomizableFunctionsPass` module pass
+- Discovers functions with `"clang-customizable-function"` attribute
+- Finds override functions matching `__custom_override_<name>`
+- Validates signature compatibility
+- Replaces wrapper body with tail call to override
+- Propagates attributes from override to call site
+
+**File**: `llvm/lib/Passes/PassBuilderPipelines.cpp`
+- Added pass to `buildLTODefaultPipeline` (Full LTO)
+- Added pass to `buildThinLTODefaultPipeline` (Thin LTO)
+
+**File**: `clang/lib/Driver/ToolChains/Clang.cpp`
+- Updates driver to pass `-fcustomizable-functions` to cc1
+
 ## Design Decisions
 
 ### Contextual Keyword Approach
@@ -419,18 +434,18 @@ A development script `custom-functions-dev.sh` provides convenient test executio
 - ✅ **CodeGen: Canonical IR representation**
 - ✅ **Comprehensive test suite (10 files)**
 
-### Phase 2: LTO Pass 🚧 NEXT
+### Phase 2: LTO Pass ✅ COMPLETE
 
 **Goal**: Implement `CustomizableFunctionsPass` in LLVM
 
 **Tasks**:
-1. Create new ModulePass in `llvm/lib/Transforms/IPO/`
-2. Discover customizable functions via `"clang-customizable-function"` attribute
-3. Find override functions (same signature, different name)
-4. Validate signature compatibility
-5. Replace calls from `@foo` → `@foo.override`
-6. Add pass to default LTO pipeline
-7. End-to-end testing with override functions
+1. ✅ Create new ModulePass in `llvm/lib/Transforms/IPO/`
+2. ✅ Discover customizable functions via `"clang-customizable-function"` attribute
+3. ✅ Find override functions (same signature, different name)
+4. ✅ Validate signature compatibility
+5. ✅ Replace calls from `@foo` → `@foo.override`
+6. ✅ Add pass to default LTO pipeline
+7. ✅ End-to-end testing with override functions
 
 **IR Contract** (already established by CodeGen):
 - Public interface: `linkonce_odr` with attribute
@@ -507,10 +522,15 @@ The linker (via LTO) will:
 6. `clang/lib/Parse/ParseDecl.cpp` - Contextual keyword parsing
 7. `clang/lib/Sema/SemaDecl.cpp` - Semantic validation
 8. `clang/include/clang/Basic/DiagnosticSemaKinds.td` - Error diagnostics
+9. `clang/lib/Driver/ToolChains/Clang.cpp` ✨ NEW - Driver flag handling
 
-#### CodeGen Implementation ✨ NEW
-9. `clang/include/clang/CodeGen/CodeGenModule.h` (lines 1896-1898) - Added EmitCustomizableFunctionDefinition
-10. `clang/lib/CodeGen/CodeGenModule.cpp` (lines 6451-6455, 6518-6594) - Canonical IR emission
+#### CodeGen Implementation
+10. `clang/include/clang/CodeGen/CodeGenModule.h` (lines 1896-1898) - Added EmitCustomizableFunctionDefinition
+11. `clang/lib/CodeGen/CodeGenModule.cpp` (lines 6451-6455, 6518-6594) - Canonical IR emission
+
+#### LTO Pass Implementation ✨ NEW
+12. `llvm/lib/Transforms/IPO/CustomizableFunctions.cpp` - The LTO pass
+13. `llvm/lib/Passes/PassBuilderPipelines.cpp` - Pipeline registration
 
 ### Documentation Added
 1. `clang/docs/CustomizableFunctions.rst` - Feature documentation
@@ -533,6 +553,14 @@ The linker (via LTO) will:
 
 #### Semantic Tests (1 file)
 10. `clang/test/SemaCXX/customizable-functions-errors.cpp`
+
+#### LLVM Transform Tests ✨ NEW
+11. `llvm/test/Transforms/CustomizableFunctions/basic-override.ll`
+12. `llvm/test/Transforms/CustomizableFunctions/attributes.ll`
+
+#### Integration Tests ✨ NEW
+13. `llvm/test/Other/customizable-functions-pipeline.ll` (Pipeline verification)
+14. `clang/test/Driver/customizable-functions.cpp` (Driver flag verification)
 
 ### Development Tools
 - `custom-functions-dev.sh` - Build and test automation script

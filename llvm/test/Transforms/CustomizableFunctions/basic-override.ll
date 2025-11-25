@@ -5,9 +5,9 @@
 
 define linkonce_odr i32 @_Z3fooi(i32 noundef %x)
         #0 {
-; CHECK-LABEL: define linkonce_odr i32 @_Z3fooi(
+; CHECK-LABEL: define {{.*}}i32 @_Z3fooi(
 ; CHECK-SAME: #[[ATTR:[0-9]+]]
-; CHECK:       [[NEWCALL:%.*]] = call i32 @__custom_override_foo(i32 %x)
+; CHECK:       [[NEWCALL:%.*]] = tail call i32 @__custom_override_foo(i32 noundef %x)
 ; CHECK-NOT:   tail call i32 @_Z3fooi.default(
 ; CHECK:       ret i32 [[NEWCALL]]
 
