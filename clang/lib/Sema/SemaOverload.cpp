@@ -17133,9 +17133,10 @@ FunctionDecl *Sema::TryResolveCustomOverride(FunctionDecl *F,
                            /*AllowExplicit=*/true,
                            /*AllowExplicitConversion=*/false,
                            /*ADLCallKind=*/ADLCallKind::NotADL,
+                           /*EarlyConversions=*/{},
                            /*PO=*/{},
                            /*AggregateCandidateDeduction=*/false,
-                           /*SuppressDiagnostics=*/true);
+                           /*StrictPackMatch=*/false);
     }
   }
 
