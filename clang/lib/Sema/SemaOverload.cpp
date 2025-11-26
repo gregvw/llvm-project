@@ -17085,3 +17085,67 @@ void Sema::DiagnoseUseOfDeletedFunction(SourceLocation Loc, SourceRange Range,
                                    << Range),
       *this, OCD_AllCandidates, Args);
 }
+
+FunctionDecl *Sema::TryResolveCustomOverride(FunctionDecl *F,
+                                             ArrayRef<Expr *> Args) {
+  // Only process custom functions.
+  if (!F || !F->isCustom())
+    return F;
+
+  // This feature is gated behind -fcustomizable-functions-sema.
+  if (!getLangOpts().CustomizableFunctionsSema)
+    return F;
+
+  // Only handle simple identifier names.
+  DeclarationName Name = F->getDeclName();
+  if (!Name.isIdentifier())
+    return F;
+
+  IdentifierInfo *II = Name.getAsIdentifierInfo();
+  if (!II)
+    return F;
+
+  // Build the override name: "foo" -> "foo_override"
+  SmallString<64> OverrideNameBuf;
+  OverrideNameBuf += II->getName();
+  OverrideNameBuf += "_override";
+
+  DeclarationName OverrideName = &Context.Idents.get(OverrideNameBuf);
+
+  // Look up in the same context as F.
+  DeclContext *DC = F->getDeclContext();
+  DeclContext::lookup_result Res = DC->lookup(OverrideName);
+
+  if (Res.empty())
+    return F;
+
+  // Build an overload candidate set and try resolution silently.
+  OverloadCandidateSet OCS(F->getLocation(),
+                           OverloadCandidateSet::CSK_Normal);
+
+  for (NamedDecl *ND : Res) {
+    if (auto *FD = dyn_cast<FunctionDecl>(ND)) {
+      // Add as an overload candidate, suppressing user diagnostics.
+      AddOverloadCandidate(FD, DeclAccessPair::make(FD, FD->getAccess()),
+                           Args, OCS,
+                           /*SuppressUserConversions=*/false,
+                           /*PartialOverloading=*/false,
+                           /*AllowExplicit=*/true,
+                           /*AllowExplicitConversion=*/false,
+                           /*ADLCallKind=*/ADLCallKind::NotADL,
+                           /*PO=*/{},
+                           /*AggregateCandidateDeduction=*/false,
+                           /*SuppressDiagnostics=*/true);
+    }
+  }
+
+  OverloadCandidateSet::iterator Best;
+  OverloadingResult Result =
+      OCS.BestViableFunction(*this, F->getLocation(), Best);
+
+  if (Result == OR_Success && Best->Function)
+    return Best->Function;
+
+  // Fall back to original F if nothing viable.
+  return F;
+}

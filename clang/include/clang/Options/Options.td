@@ -1685,6 +1685,12 @@ defm customizable_functions : BoolFOption<"customizable-functions",
           "Enable support for customizable functions">,
   NegFlag<SetFalse>>;
 
+defm customizable_functions_sema : BoolFOption<"customizable-functions-sema",
+  LangOpts<"CustomizableFunctionsSema">, DefaultFalse,
+  PosFlag<SetTrue, [], [ClangOption, CC1Option],
+          "Enable experimental Sema-level customizable function override resolution">,
+  NegFlag<SetFalse>>;
+
 def fembed_offload_object_EQ : Joined<["-"], "fembed-offload-object=">,
   Group<f_Group>, Flags<[NoXarchOption]>,
   Visibility<[ClangOption, CC1Option, FC1Option]>,

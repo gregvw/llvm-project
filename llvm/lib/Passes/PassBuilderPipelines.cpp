@@ -1816,7 +1816,9 @@ ModulePassManager PassBuilder::buildThinLTODefaultPipeline(
     OptimizationLevel Level, const ModuleSummaryIndex *ImportSummary) {
   ModulePassManager MPM;
 
-  // Handle customizable functions
+  // Run customizable-functions early so overrides are visible to the inliner.
+  // This pass rewrites wrappers marked with "clang-customizable-function" to
+  // call __custom_override_<name> functions when present and signature-compatible.
   MPM.addPass(CustomizableFunctionsPass());
 
   // If we are invoking this without a summary index noting that we are linking
@@ -1896,7 +1898,9 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
 
   invokeFullLinkTimeOptimizationEarlyEPCallbacks(MPM, Level);
 
-  // Handle customizable functions early to allow override inlining
+  // Run customizable-functions early so overrides are visible to the inliner.
+  // This pass rewrites wrappers marked with "clang-customizable-function" to
+  // call __custom_override_<name> functions when present and signature-compatible.
   MPM.addPass(CustomizableFunctionsPass());
 
   // If we are invoking this without a summary index noting that we are linking

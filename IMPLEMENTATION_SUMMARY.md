@@ -452,7 +452,50 @@ A development script `custom-functions-dev.sh` provides convenient test executio
 - Default impl: `internal` with `.default` suffix
 - Module metadata for discovery
 
-### Phase 3: Advanced Features 📋 FUTURE
+### Phase 2b: Hardening ✅ COMPLETE
+
+**Goal**: Make existing behavior bullet-proof with comprehensive edge-case handling.
+
+**Tasks**:
+1. ✅ **Signature mismatch behavior**: When override signature doesn't match wrapper, keep calling `.default`
+   - Test: `llvm/test/Transforms/CustomizableFunctions/signature-mismatch.ll`
+2. ✅ **Multiple wrappers, same logical name**: Only rewrite wrappers with matching function type
+   - Test: `llvm/test/Transforms/CustomizableFunctions/multiple-wrappers.ll`
+3. ✅ **No-op on missing override**: Pass leaves body unchanged when no override exists
+   - Test: `llvm/test/Transforms/CustomizableFunctions/no-override.ll`
+4. ✅ **Pipeline placement tests**: Verify pass runs in both LTO and ThinLTO, before inliner
+   - Test: `llvm/test/Other/customizable-functions-pipeline.ll`
+5. ✅ **No-flag behavior test**: Verify `custom` is treated as identifier without `-fcustomizable-functions`
+   - Test: `clang/test/SemaCXX/customizable-functions-no-flag.cpp`
+6. ✅ **Feature detection**: Added `__has_feature(customizable_functions)` and `__has_extension(customizable_functions)`
+   - Test: `clang/test/Preprocessor/has_feature_customizable_functions.cpp`
+7. ✅ **AST tooling**: Added `custom` to `-ast-dump` and `-ast-print` output
+   - Test: `clang/test/AST/customizable-functions-ast-dump.cpp`
+
+### Phase 3 (Experimental): Sema-Level Override Hooks ✅ COMPLETE
+
+**Goal**: Introduce infrastructure for Sema-level override resolution, gated behind an experimental flag.
+
+**Tasks**:
+1. ✅ **Add `-fcustomizable-functions-sema` flag**: Gates experimental Sema-level override resolution
+2. ✅ **Introduce `TryResolveCustomOverride` helper**: Single choke point for custom function resolution
+3. ✅ **Implement `_override` naming convention**: For testing, looks for `<name>_override` in same context
+4. ✅ **Hook into `BuildResolvedCallExpr`**: Intercepts calls to custom functions
+
+**Usage**:
+```cpp
+// With -fcustomizable-functions-sema, calls to foo() are redirected to foo_override()
+custom int foo(int x) { return x + 1; }
+int foo_override(int x) { return x + 100; }
+```
+
+**Design Notes**:
+- Completely independent of LTO override mechanism
+- Only activates with `-fcustomizable-functions-sema` flag
+- Uses standard overload resolution (silent, no diagnostics on mismatch)
+- Falls back to original function if no viable override found
+
+### Phase 4: Advanced Features 📋 FUTURE
 
 Potential enhancements for later:
 
@@ -473,7 +516,7 @@ Potential enhancements for later:
    - Cross-compiler compatibility
    - Version compatibility
 
-5. **Feature Detection**: Add `__has_feature(customizable_functions)` support
+5. **Richer Override Naming**: ADL-based lookup, namespace-qualified names, etc.
 
 ## Integration Points
 
@@ -485,12 +528,12 @@ The `isCustom()` flag on `FunctionDecl` is now propagated to:
 
 See Section 8 for complete CodeGen implementation details.
 
-### LTO Pass 🚧 TO BE IMPLEMENTED
-Future LTO pass will:
-- Discover customizable functions via IR attributes
-- Find and validate override functions
-- Replace calls to use override implementations
-- Optimize away unused default implementations
+### LTO Pass ✅ IMPLEMENTED
+The CustomizableFunctionsPass:
+- Discovers customizable functions via `"clang-customizable-function"` attribute
+- Finds override functions matching `__custom_override_<name>`
+- Validates signature compatibility before rewriting
+- Replaces wrapper body with tail call to override
 
 ### Linker
 The linker (via LTO) will:
@@ -532,6 +575,18 @@ The linker (via LTO) will:
 12. `llvm/lib/Transforms/IPO/CustomizableFunctions.cpp` - The LTO pass
 13. `llvm/lib/Passes/PassBuilderPipelines.cpp` - Pipeline registration
 
+#### Phase 2b Hardening ✨ NEW
+14. `clang/include/clang/Basic/Features.def` - Added customizable_functions extension
+15. `clang/lib/AST/TextNodeDumper.cpp` - Added custom to -ast-dump
+16. `clang/lib/AST/DeclPrinter.cpp` - Added custom to -ast-print
+
+#### Phase 3 Sema Override ✨ NEW
+17. `clang/include/clang/Basic/LangOptions.def` - Added CustomizableFunctionsSema option
+18. `clang/include/clang/Options/Options.td` - Added -fcustomizable-functions-sema flag
+19. `clang/include/clang/Sema/Sema.h` - Added TryResolveCustomOverride declaration
+20. `clang/lib/Sema/SemaOverload.cpp` - TryResolveCustomOverride implementation
+21. `clang/lib/Sema/SemaExpr.cpp` - Hooked into BuildResolvedCallExpr
+
 ### Documentation Added
 1. `clang/docs/CustomizableFunctions.rst` - Feature documentation
 2. `clang/docs/ReleaseNotes.rst` (updated) - Release notes
@@ -557,10 +612,21 @@ The linker (via LTO) will:
 #### LLVM Transform Tests ✨ NEW
 11. `llvm/test/Transforms/CustomizableFunctions/basic-override.ll`
 12. `llvm/test/Transforms/CustomizableFunctions/attributes.ll`
+13. `llvm/test/Transforms/CustomizableFunctions/no-override.ll`
+14. `llvm/test/Transforms/CustomizableFunctions/signature-mismatch.ll` (Phase 2b)
+15. `llvm/test/Transforms/CustomizableFunctions/multiple-wrappers.ll` (Phase 2b)
 
 #### Integration Tests ✨ NEW
-13. `llvm/test/Other/customizable-functions-pipeline.ll` (Pipeline verification)
-14. `clang/test/Driver/customizable-functions.cpp` (Driver flag verification)
+16. `llvm/test/Other/customizable-functions-pipeline.ll` (Pipeline verification)
+17. `clang/test/Driver/customizable-functions.cpp` (Driver flag verification)
+
+#### Phase 2b Hardening Tests ✨ NEW
+18. `clang/test/SemaCXX/customizable-functions-no-flag.cpp` (No-flag behavior)
+19. `clang/test/Preprocessor/has_feature_customizable_functions.cpp` (Feature detection)
+20. `clang/test/AST/customizable-functions-ast-dump.cpp` (AST tooling)
+
+#### Phase 3 Sema Override Tests ✨ NEW
+21. `clang/test/CodeGenCXX/customizable-functions-sema-override.cpp` (Sema-level override)
 
 ### Development Tools
 - `custom-functions-dev.sh` - Build and test automation script
