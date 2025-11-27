@@ -17,6 +17,33 @@ The ``custom`` specifier is implemented as a **contextual keyword**, meaning it
 only has special meaning in specific syntactic contexts (as a function specifier)
 and can still be used as an identifier elsewhere in your code.
 
+Motivation
+==========
+
+The need for explicit customization points in C++ has been a long-standing
+challenge. Traditional approaches using Argument-Dependent Lookup (ADL) are
+subtle and error-prone, while library solutions like customization point objects
+(CPOs) or ``tag_invoke`` add complexity and can impact compile times and
+diagnostics.
+
+**Key problems this feature addresses:**
+
+- **ADL complexity**: Proper creation and use of ADL-based customization points
+  requires expert knowledge and careful attention to detail
+
+- **Library overhead**: CPO and ``tag_invoke`` approaches introduce template
+  machinery and indirection that affects compile times and error messages
+
+- **Lack of explicit opt-in**: No clear language mechanism to declare that a
+  function is intended as a customization point
+
+- **Interface clarity**: Hard to understand which functions are customizable
+  without reading extensive documentation
+
+This feature provides a simple, explicit syntax for declaring customizable
+functions at the language level, with efficient link-time override resolution
+that avoids the complexity of existing library-based approaches.
+
 Enabling the Feature
 ====================
 
@@ -596,6 +623,44 @@ may include:
 
 References
 ==========
+
+Related Work
+------------
+
+This feature is inspired by and addresses problems identified in several WG21
+proposals for language-level customization mechanisms:
+
+**P1292R0: Customization Point Functions** (2018)
+  Daveed Vandevoorde's proposal for explicit syntax to declare customization
+  point functions using ``virtual`` at namespace scope with explicit ``override``
+  specifiers. Identifies the complexity of ADL-based customization and proposes
+  language support for hierarchical override chains.
+
+  https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p1292r0.html
+
+**P1665R0: Range Adaptors: Property Customisation Points** (2019)
+  Discusses customization mechanisms for C++20 ranges, exploring how to allow
+  users to customize behavior of range adaptors and standard library components.
+
+  https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1665r0.pdf
+
+**P2279R0: We need a language mechanism for customization points** (2021)
+  Barry Revzin's analysis comparing existing customization strategies (virtual
+  functions, template specialization, ADL, CPOs, ``tag_invoke``) and arguing
+  that none comprehensively solve the problem. Advocates for dedicated language
+  support similar to Rust traits.
+
+  https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2279r0.html
+
+**P2547R1: Language Support for Customisable Functions** (2022)
+  Proposes a language mechanism for defining customizable namespace-scoped
+  functions as an alternative to ``tag_invoke``, aiming to simplify library
+  customization points while improving compile times and error messages.
+
+  https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2547r1.html
+
+Clang Documentation
+-------------------
 
 - Clang Language Extensions: :doc:`LanguageExtensions`
 - Function Attributes: :doc:`AttributeReference`
