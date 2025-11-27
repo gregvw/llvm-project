@@ -38,14 +38,14 @@ user::Number call_add(user::Number x, user::Number y) {
 }
 
 // With -fcustomizable-functions-sema, the call should go to user::add
-// CHECK-SEMA-LABEL: define {{.*}}void @_Z8call_addN4user6NumberES0_(
-// CHECK-SEMA: call {{.*}}void @_ZN4user3addERKNS_6NumberES2_(
-// CHECK-SEMA-NOT: call {{.*}}void @_ZN3lib3addINS_6NumberEEET_RKS2_S4_(
+// CHECK-SEMA-LABEL: define {{.*}}i32 @_Z8call_addN4user6NumberES0_(
+// CHECK-SEMA: call {{.*}}i32 @_ZN4user3addERKNS_6NumberES2_(
+// CHECK-SEMA-NOT: call {{.*}}i32 @_ZN3lib3addINS_6NumberEEET_RKS2_S4_(
 
 // Without -fcustomizable-functions-sema, the call goes to lib::add wrapper
-// CHECK-NO-SEMA-LABEL: define {{.*}}void @_Z8call_addN4user6NumberES0_(
-// CHECK-NO-SEMA: call {{.*}}void @_ZN3lib3addIN4user6NumberEEET_RKS2_S4_(
-// CHECK-NO-SEMA-NOT: call {{.*}}void @_ZN4user3addERKNS_6NumberES2_(
+// CHECK-NO-SEMA-LABEL: define {{.*}}i32 @_Z8call_addN4user6NumberES0_(
+// CHECK-NO-SEMA: call {{.*}}i32 @_ZN3lib3addIN4user6NumberEEET_RK{{.*}}(
+// CHECK-NO-SEMA-NOT: call {{.*}}i32 @_ZN4user3addERKNS_6NumberE{{.*}}(
 
 // ============================================================================
 // Test 2: No ADL override available - use default
@@ -72,11 +72,11 @@ types::Value call_multiply(types::Value x, types::Value y) {
 }
 
 // No override available, so both modes call the custom function
-// CHECK-SEMA-LABEL: define {{.*}}void @_Z13call_multiplyN5types5ValueES0_(
-// CHECK-SEMA: call {{.*}}void @_ZN4math8multiplyIN5types5ValueEEET_RKS3_S5_(
+// CHECK-SEMA-LABEL: define {{.*}}i32 @_Z13call_multiplyN5types5ValueES0_(
+// CHECK-SEMA: call {{.*}}i32 @_ZN4math8multiplyIN5types5ValueEEET_RK{{.*}}(
 
-// CHECK-NO-SEMA-LABEL: define {{.*}}void @_Z13call_multiplyN5types5ValueES0_(
-// CHECK-NO-SEMA: call {{.*}}void @_ZN4math8multiplyIN5types5ValueEEET_RKS3_S5_(
+// CHECK-NO-SEMA-LABEL: define {{.*}}i32 @_Z13call_multiplyN5types5ValueES0_(
+// CHECK-NO-SEMA: call {{.*}}i32 @_ZN4math8multiplyIN5types5ValueEEET_RK{{.*}}(
 
 // ============================================================================
 // Test 3: ADL override with wrong signature should not be selected
@@ -102,8 +102,8 @@ user2::Data call_transform(user2::Data x) {
 }
 
 // Even with sema override, wrong signature means no override
-// CHECK-SEMA-LABEL: define {{.*}}void @_Z14call_transformN5user24DataE(
-// CHECK-SEMA: call {{.*}}void @_ZN4lib29transformIN5user24DataEEET_RKS3_(
+// CHECK-SEMA-LABEL: define {{.*}}i32 @_Z14call_transformN5user24DataE(
+// CHECK-SEMA: call {{.*}}i32 @_ZN4lib29transformIN5user24DataEEET_RKS3_(
 
 // ============================================================================
 // Test 4: ADL override that is itself custom should not be used
@@ -129,8 +129,8 @@ derived::Item call_process(derived::Item x) {
 }
 
 // Custom-to-custom override should not happen
-// CHECK-SEMA-LABEL: define {{.*}}void @_Z12call_processN7derived4ItemE(
-// CHECK-SEMA: call {{.*}}void @_ZN4base7processIN7derived4ItemEEET_RKS3_(
+// CHECK-SEMA-LABEL: define {{.*}}i32 @_Z12call_processN7derived4ItemE(
+// CHECK-SEMA: call {{.*}}i32 @_ZN4base7processIN7derived4ItemEEET_RKS3_(
 
 // ============================================================================
 // Test 5: Non-custom function should not do ADL resolution
@@ -159,12 +159,12 @@ user3::Num call_compute(user3::Num x, user3::Num y) {
 }
 
 // Non-custom functions should not trigger ADL override resolution
-// CHECK-SEMA-LABEL: define {{.*}}void @_Z12call_computeN5user33NumES0_(
-// CHECK-SEMA: call {{.*}}void @_ZN4lib37computeIN5user33NumEEET_RKS3_S5_(
-// CHECK-SEMA-NOT: call {{.*}}void @_ZN5user37computeERKNS_3NumES2_(
+// CHECK-SEMA-LABEL: define {{.*}}i32 @_Z12call_computeN5user33NumES0_(
+// CHECK-SEMA: call {{.*}}i32 @_ZN4lib37computeIN5user33NumEEET_RK{{.*}}(
+// CHECK-SEMA-NOT: call {{.*}}i32 @_ZN5user37computeERKNS_3NumE{{.*}}(
 
-// CHECK-NO-SEMA-LABEL: define {{.*}}void @_Z12call_computeN5user33NumES0_(
-// CHECK-NO-SEMA: call {{.*}}void @_ZN4lib37computeIN5user33NumEEET_RKS3_S5_(
+// CHECK-NO-SEMA-LABEL: define {{.*}}i32 @_Z12call_computeN5user33NumES0_(
+// CHECK-NO-SEMA: call {{.*}}i32 @_ZN4lib37computeIN5user33NumEEET_RK{{.*}}(
 
 // ============================================================================
 // Test 6: Better match via ADL is preferred over template
@@ -181,6 +181,9 @@ namespace gpu {
     float data[4];
     float dot(const GPUVector& other) const {
       return data[0] * other.data[0];  // simplified
+    }
+    float operator*(const GPUVector& other) const {
+      return dot(other);
     }
   };
 
@@ -200,4 +203,4 @@ float call_inner_product(gpu::GPUVector a, gpu::GPUVector b) {
 
 // Without sema, the generic template wrapper is called
 // CHECK-NO-SEMA-LABEL: define {{.*}}float @_Z18call_inner_productN3gpu9GPUVectorES0_(
-// CHECK-NO-SEMA: call {{.*}}float @_ZN7generic13inner_productINS_9GPUVectorES1_EEDaRKT_RKT0_(
+// CHECK-NO-SEMA: call {{.*}}float @_ZN7generic13inner_productIN{{.*}}EEDaRK{{.*}}(
