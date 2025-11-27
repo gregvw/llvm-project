@@ -17096,57 +17096,101 @@ FunctionDecl *Sema::TryResolveCustomOverride(FunctionDecl *F,
   if (!getLangOpts().CustomizableFunctionsSema)
     return F;
 
-  // Only handle simple identifier names.
+  // Get the function name for ADL lookup.
   DeclarationName Name = F->getDeclName();
   if (!Name.isIdentifier())
     return F;
 
-  IdentifierInfo *II = Name.getAsIdentifierInfo();
-  if (!II)
-    return F;
-
-  // Build the override name: "foo" -> "foo_override"
-  SmallString<64> OverrideNameBuf;
-  OverrideNameBuf += II->getName();
-  OverrideNameBuf += "_override";
-
-  DeclarationName OverrideName = &Context.Idents.get(OverrideNameBuf);
-
-  // Look up in the same context as F.
-  DeclContext *DC = F->getDeclContext();
-  DeclContext::lookup_result Res = DC->lookup(OverrideName);
-
-  if (Res.empty())
-    return F;
-
-  // Build an overload candidate set and try resolution silently.
+  // Build an overload candidate set with the original function as baseline.
   OverloadCandidateSet OCS(F->getLocation(),
                            OverloadCandidateSet::CSK_Normal);
 
-  for (NamedDecl *ND : Res) {
+  // Add the original custom function F as a candidate.
+  // If F is a template specialization, we need to add its primary template.
+  if (FunctionTemplateDecl *FTD = F->getPrimaryTemplate()) {
+    AddTemplateOverloadCandidate(
+        FTD, DeclAccessPair::make(FTD, FTD->getAccess()),
+        /*ExplicitTemplateArgs=*/nullptr, Args, OCS,
+        /*SuppressUserConversions=*/false,
+        /*PartialOverloading=*/false,
+        /*AllowExplicit=*/true,
+        ADLCallKind::NotADL);
+  } else {
+    AddOverloadCandidate(F, DeclAccessPair::make(F, F->getAccess()),
+                         Args, OCS,
+                         /*SuppressUserConversions=*/false,
+                         /*PartialOverloading=*/false,
+                         /*AllowExplicit=*/true,
+                         /*AllowExplicitConversion=*/false,
+                         ADLCallKind::NotADL);
+  }
+
+  // Perform ADL on the same function name based on argument types.
+  // This is the key extension: qualified calls to custom functions
+  // get ADL-enhanced lookup.
+  ADLResult Fns;
+  ArgumentDependentLookup(Name, F->getLocation(), Args, Fns);
+
+  // Add ADL-found candidates to the overload set.
+  for (NamedDecl *ND : Fns) {
+    // Skip the original function to avoid duplicate candidates.
+    if (ND == F)
+      continue;
+    if (FunctionTemplateDecl *FTD = F->getPrimaryTemplate()) {
+      if (ND == FTD)
+        continue;
+    }
+
+    DeclAccessPair FoundDecl = DeclAccessPair::make(ND, AS_none);
+
     if (auto *FD = dyn_cast<FunctionDecl>(ND)) {
-      // Add as an overload candidate, suppressing user diagnostics.
-      AddOverloadCandidate(FD, DeclAccessPair::make(FD, FD->getAccess()),
-                           Args, OCS,
+      // Skip other custom functions to prevent weird recursion/layering.
+      if (FD->isCustom())
+        continue;
+
+      AddOverloadCandidate(FD, FoundDecl, Args, OCS,
                            /*SuppressUserConversions=*/false,
                            /*PartialOverloading=*/false,
                            /*AllowExplicit=*/true,
                            /*AllowExplicitConversion=*/false,
-                           /*ADLCallKind=*/ADLCallKind::NotADL,
-                           /*EarlyConversions=*/{},
-                           /*PO=*/{},
-                           /*AggregateCandidateDeduction=*/false,
-                           /*StrictPackMatch=*/false);
+                           ADLCallKind::UsesADL);
+    } else if (auto *FTD = dyn_cast<FunctionTemplateDecl>(ND)) {
+      // Skip template custom functions.
+      if (FTD->getTemplatedDecl()->isCustom())
+        continue;
+
+      AddTemplateOverloadCandidate(
+          FTD, FoundDecl,
+          /*ExplicitTemplateArgs=*/nullptr, Args, OCS,
+          /*SuppressUserConversions=*/false,
+          /*PartialOverloading=*/false,
+          /*AllowExplicit=*/true,
+          ADLCallKind::UsesADL);
     }
   }
 
+  // Run overload resolution to pick the best viable candidate.
   OverloadCandidateSet::iterator Best;
   OverloadingResult Result =
       OCS.BestViableFunction(*this, F->getLocation(), Best);
 
-  if (Result == OR_Success && Best->Function)
-    return Best->Function;
+  if (Result != OR_Success || !Best->Function)
+    return F;  // No viable override; fall back to original.
 
-  // Fall back to original F if nothing viable.
-  return F;
+  FunctionDecl *Chosen = Best->Function;
+
+  // If we picked the original function (or its instantiation), just return F.
+  if (Chosen == F)
+    return F;
+  if (FunctionTemplateDecl *FTD = F->getPrimaryTemplate()) {
+    if (Chosen->getPrimaryTemplate() == FTD)
+      return F;
+  }
+
+  // Prevent a custom function from being overridden by another custom function.
+  if (Chosen->isCustom())
+    return F;
+
+  // Success: we've found a better override via ADL.
+  return Chosen;
 }
