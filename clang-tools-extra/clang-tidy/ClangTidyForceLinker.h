@@ -54,6 +54,11 @@ extern volatile int CppCoreGuidelinesModuleAnchorSource;
 [[maybe_unused]] static int CppCoreGuidelinesModuleAnchorDestination =
     CppCoreGuidelinesModuleAnchorSource;
 
+// This anchor is used to force the linker to link the CustomizableModule.
+extern volatile int CustomizableModuleAnchorSource;
+[[maybe_unused]] static int CustomizableModuleAnchorDestination =
+    CustomizableModuleAnchorSource;
+
 #if CLANG_TIDY_ENABLE_QUERY_BASED_CUSTOM_CHECKS
 // This anchor is used to force the linker to link the CustomModule.
 extern volatile int CustomModuleAnchorSource;
