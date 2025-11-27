@@ -114,6 +114,9 @@ ${GREEN}Test Categories:${NC}
   ${YELLOW}test sema${NC}             Run SemaCXX tests:
                           - customizable-functions-errors.cpp
 
+  ${YELLOW}test sema-override${NC}    Run Sema ADL override tests:
+                          - customizable-functions-sema-override.cpp
+
   ${YELLOW}test llvm${NC}             Run LLVM transform tests:
                           - basic-override.ll
                           - no-override.ll
@@ -313,6 +316,11 @@ run_tests() {
                 "${LLVM_DIR}/clang/test/SemaCXX/customizable-functions-errors.cpp"
 
             echo ""
+            print_info "Sema override tests..."
+            ./bin/llvm-lit -v \
+                "${LLVM_DIR}/clang/test/CodeGenCXX/customizable-functions-sema-override.cpp"
+
+            echo ""
             print_info "LLVM transform tests..."
             ./bin/llvm-lit -v \
                 "${LLVM_DIR}/llvm/test/Transforms/CustomizableFunctions/"
@@ -345,6 +353,12 @@ run_tests() {
             print_info "Running Sema tests only"
             ./bin/llvm-lit -v \
                 "${LLVM_DIR}/clang/test/SemaCXX/customizable-functions-errors.cpp"
+            ;;
+
+        sema-override|override)
+            print_info "Running Sema override/ADL tests"
+            ./bin/llvm-lit -v \
+                "${LLVM_DIR}/clang/test/CodeGenCXX/customizable-functions-sema-override.cpp"
             ;;
 
         llvm)
