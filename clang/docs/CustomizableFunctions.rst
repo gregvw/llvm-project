@@ -27,6 +27,18 @@ compiler flag:
 
    clang++ -fcustomizable-functions source.cpp
 
+To enable override substitution at link time, you must also use LTO:
+
+.. code-block:: bash
+
+   clang++ -fcustomizable-functions -flto source.cpp override.cpp -o program
+
+Alternatively, for the experimental Sema-level ADL-based override mechanism:
+
+.. code-block:: bash
+
+   clang++ -fcustomizable-functions -fcustomizable-functions-sema source.cpp
+
 Grammar and Syntax
 ==================
 
@@ -219,16 +231,17 @@ instantiations:
    }
 
    // Different overloads
-   custom int add(int a, int b);     // Mangled as: _ZN3addEii
-   custom double add(double a, double b);  // Mangled as: _ZN3addEdd
+   custom int add(int a, int b);     // Mangled as: _Z3addii
+   custom double add(double a, double b);  // Mangled as: _Z3adddd
 
 Each customizable function's wrapper is annotated with two attributes:
 
 - ``clang-customizable-function``: Contains the **mangled name** for unique identification
 - ``clang-customizable-function-name``: Contains the **pretty name** for diagnostics
 
-At link time, the LLVM CustomizableFunctions pass looks for override symbols
-with the naming convention ``__custom_override_<mangled_name>``. For example:
+At link time (during LTO or ThinLTO), the LLVM CustomizableFunctions pass
+looks for override symbols with the naming convention ``__custom_override_<mangled_name>``.
+For example:
 
 .. code-block:: c++
 
@@ -239,6 +252,37 @@ with the naming convention ``__custom_override_<mangled_name>``. For example:
 
 This mangled-name approach prevents collisions that would occur with unqualified
 names, ensuring that each function can be independently customized.
+
+**Important requirements for override substitution:**
+
+- **LTO/ThinLTO required**: Override substitution only happens during link-time
+  optimization. Non-LTO builds will continue to call the ``.default`` implementation.
+  Use ``-flto`` or ``-flto=thin`` to enable override resolution.
+
+- **Exact signature match**: The override symbol must have the same signature and
+  calling convention as the wrapper function. If the signature doesn't match, the
+  pass will leave the wrapper calling the ``.default`` body and may emit a warning.
+
+Experimental Sema-Level Override (ADL-based)
+--------------------------------------------
+
+An experimental alternative override mechanism is available via the
+``-fcustomizable-functions-sema`` flag. When enabled, override resolution
+happens at the call site during semantic analysis using Argument-Dependent
+Lookup (ADL) instead of link-time substitution.
+
+With this flag:
+
+- The compiler looks for an ADL-visible function in the same namespace as
+  the customizable function's arguments
+- The override function should be named with a special pattern that Sema
+  recognizes
+- Override resolution happens at compile time, not link time
+- No LTO is required for this mechanism
+
+**This is highly experimental** and the naming convention and exact behavior
+may change. The default link-time mechanism (described above) is the
+recommended and stable approach.
 
 Parser Recognition
 ------------------
@@ -305,6 +349,49 @@ Basic Usage
    custom T process(T value) {
      return value;
    }
+
+Overriding a Customizable Function
+-----------------------------------
+
+Here's a complete example showing how to override a customizable function using LTO:
+
+**library.cpp** (defines customizable function):
+
+.. code-block:: c++
+
+   // Library provides a default allocator
+   custom void* allocate(size_t size) {
+     return malloc(size);  // Default implementation
+   }
+
+   void library_function() {
+     void* ptr = allocate(100);  // Calls customizable allocate
+     // ... use ptr ...
+   }
+
+**override.cpp** (provides custom override):
+
+.. code-block:: c++
+
+   #include <cstddef>
+
+   // Override the allocate function with a custom implementation
+   // Use the mangled name: _Z8allocatem (for allocate(size_t))
+   extern "C" void* __custom_override__Z8allocatem(size_t size) {
+     // Custom pool allocator implementation
+     return my_pool_allocator(size);
+   }
+
+**Building with LTO:**
+
+.. code-block:: bash
+
+   clang++ -fcustomizable-functions -flto -c library.cpp -o library.o
+   clang++ -flto -c override.cpp -o override.o
+   clang++ -flto library.o override.o -o program
+
+At link time, the ``CustomizableFunctions`` pass will replace calls to
+``allocate`` with calls to ``__custom_override__Z8allocatem``.
 
 Interaction with Other Features
 --------------------------------
