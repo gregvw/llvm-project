@@ -10168,6 +10168,14 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
           Diag(D.getDeclSpec().getCustomSpecLoc(),
                diag::err_custom_requires_identifier) << DiagSel;
           NewFD->setInvalidDecl();
+        } else if (D.getDeclSpec().getStorageClassSpec() == DeclSpec::SCS_static ||
+                   NewFD->getFormalLinkage() != Linkage::External) {
+          // Check that the function has external linkage.
+          // Reject static/internal linkage to prevent silent linkage upgrade
+          // and ensure the LTO override model works as intended.
+          Diag(D.getDeclSpec().getCustomSpecLoc(),
+               diag::err_custom_requires_external_linkage);
+          NewFD->setInvalidDecl();
         } else {
           NewFD->setCustom(true);
         }

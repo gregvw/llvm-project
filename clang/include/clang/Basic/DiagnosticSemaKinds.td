@@ -2181,6 +2181,8 @@ def err_custom_with_inline : Error<
 def err_custom_requires_identifier : Error<
   "'custom' can only be applied to functions with identifier names, not "
   "%select{operators|conversion functions|user-defined literals}0">;
+def err_custom_requires_external_linkage : Error<
+  "'custom' can only be applied to functions with external linkage">;
 def err_static_not_bitfield : Error<"static member %0 cannot be a bit-field">;
 def err_static_out_of_line : Error<
   "'static' can only be specified inside the class definition">;
