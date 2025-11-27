@@ -192,6 +192,10 @@ def Security      : RecordLikeDetailCommand<"security">;
 def SeeAlso       : BlockCommand<"seealso">;
 def SuperClass    : RecordLikeDetailCommand<"superclass">;
 
+// Customizable functions documentation
+def CustomizationPoint : BlockCommand<"customizationpoint">;
+def Customizable       : BlockCommand<"customizable">;
+
 //===----------------------------------------------------------------------===//
 // VerbatimBlockCommand
 //===----------------------------------------------------------------------===//
@@ -346,6 +350,7 @@ def FunctionGroup  : FunctionDeclarationVerbatimLineCommand<"functiongroup">;
 def Method    : FunctionDeclarationVerbatimLineCommand<"method">;
 def MethodGroup    : FunctionDeclarationVerbatimLineCommand<"methodgroup">;
 def Callback  : FunctionDeclarationVerbatimLineCommand<"callback">;
+def Custom    : FunctionDeclarationVerbatimLineCommand<"custom">;
 def Const     : DeclarationVerbatimLineCommand<"const">;
 def Constant  : DeclarationVerbatimLineCommand<"constant">;
 def Enum      : DeclarationVerbatimLineCommand<"enum">;

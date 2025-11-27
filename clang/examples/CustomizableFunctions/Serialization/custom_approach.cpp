@@ -26,10 +26,28 @@
 
 namespace serialize {
 
-/**
- * Generic serialization customization point.
- * ADVANTAGE: This is a simple function template, not a complex class hierarchy.
- */
+/// @custom
+/// @brief Generic JSON serialization customization point
+/// @customizationpoint
+/// This function provides a non-intrusive way to serialize any C++ type to JSON.
+/// Users can customize serialization for their types by providing an overload
+/// in their type's namespace, which will be found via ADL (Argument Dependent Lookup).
+///
+/// Example customization:
+/// @code
+/// namespace user {
+///   struct Person { std::string name; int age; };
+///
+///   // This overload is found via ADL
+///   std::string toJSON(const Person& p) {
+///     return "{\"name\": \"" + p.name + "\"}";
+///   }
+/// }
+/// @endcode
+///
+/// @tparam T The type to serialize
+/// @param value The object to serialize
+/// @returns JSON string representation
 template<typename T>
 custom std::string toJSON(const T& value) {
     // Default implementation - could provide a generic fallback
