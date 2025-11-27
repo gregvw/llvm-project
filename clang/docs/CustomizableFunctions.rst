@@ -393,6 +393,164 @@ Here's a complete example showing how to override a customizable function using 
 At link time, the ``CustomizableFunctions`` pass will replace calls to
 ``allocate`` with calls to ``__custom_override__Z8allocatem``.
 
+Finding the Mangled Name
+-------------------------
+
+To determine the mangled name for a customizable function, you can use one
+of these approaches:
+
+**Method 1: Check LLVM IR attributes**
+
+.. code-block:: bash
+
+   clang++ -fcustomizable-functions -S -emit-llvm library.cpp -o library.ll
+   grep 'clang-customizable-function' library.ll
+
+Output will show the attribute with the mangled name:
+
+.. code-block:: llvm
+
+   attributes #0 = { ... "clang-customizable-function"="_Z8allocatem" ... }
+
+**Method 2: Use nm with demangling**
+
+.. code-block:: bash
+
+   clang++ -fcustomizable-functions -c library.cpp -o library.o
+   nm library.o | grep -i allocate
+
+This shows the raw mangled names. Use ``nm -C`` to see demangled names alongside.
+
+Overload Example
+----------------
+
+When overloading customizable functions, each overload gets a unique mangled name:
+
+.. code-block:: c++
+
+   // library.cpp
+   custom int add(int a, int b) {
+     return a + b;
+   }
+
+   custom double add(double a, double b) {
+     return a + b;
+   }
+
+.. code-block:: bash
+
+   # Find the mangled names
+   clang++ -fcustomizable-functions -S -emit-llvm library.cpp -o library.ll
+   grep 'clang-customizable-function' library.ll
+   # Shows: _Z3addii (int version) and _Z3adddd (double version)
+
+.. code-block:: c++
+
+   // override.cpp - override only the int version
+   extern "C" int __custom_override__Z3addii(int a, int b) {
+     return a + b + 1;  // Custom implementation for int
+   }
+
+   // The double version continues using the default implementation
+
+Template Instantiation Example
+-------------------------------
+
+Template instantiations also get unique mangled names:
+
+.. code-block:: c++
+
+   // library.cpp
+   template<typename T>
+   custom T process(T value) {
+     return value * 2;
+   }
+
+   // Explicit instantiations
+   template int process<int>(int);
+   template double process<double>(double);
+
+.. code-block:: bash
+
+   # Find mangled names for instantiations
+   clang++ -fcustomizable-functions -S -emit-llvm library.cpp -o library.ll
+   grep 'clang-customizable-function' library.ll
+   # Shows: _Z7processIiET_S0_ (int) and _Z7processIdET_S0_ (double)
+
+.. code-block:: c++
+
+   // override.cpp - override just the int instantiation
+   extern "C" int __custom_override__Z7processIiET_S0_(int value) {
+     return value * 3;  // Different implementation for int
+   }
+
+Extern "C" Example
+------------------
+
+Functions with C linkage have simpler, unmangled names:
+
+.. code-block:: c++
+
+   // library.cpp
+   extern "C" custom int compute(int x) {
+     return x * 2;
+   }
+
+Since there's no C++ name mangling, the override symbol is straightforward:
+
+.. code-block:: c++
+
+   // override.cpp
+   extern "C" int __custom_override_compute(int x) {
+     return x * 3;  // Override implementation
+   }
+
+No need to look up mangled names—just use ``__custom_override_<function_name>``.
+
+Sema-Level Override Example (Experimental)
+-------------------------------------------
+
+With ``-fcustomizable-functions-sema``, you can override functions using
+ADL at the call site instead of link-time substitution:
+
+.. code-block:: c++
+
+   // library.cpp
+   namespace lib {
+     struct Point { int x, y; };
+
+     custom void transform(Point& p) {
+       p.x *= 2;
+       p.y *= 2;
+     }
+
+     void use_transform() {
+       Point p{1, 2};
+       transform(p);  // ADL will find overrides in same namespace as Point
+     }
+   }
+
+.. code-block:: c++
+
+   // override.cpp
+   namespace lib {
+     // Sema finds this via ADL when compiling the call site
+     void transform(Point& p) {
+       // Custom implementation - triple instead of double
+       p.x *= 3;
+       p.y *= 3;
+     }
+   }
+
+.. code-block:: bash
+
+   # Compile with Sema override enabled
+   clang++ -fcustomizable-functions -fcustomizable-functions-sema \
+           library.cpp override.cpp -o program
+
+The override resolution happens at compile time based on ADL visibility.
+**Note**: This mechanism is highly experimental and subject to change.
+
 Interaction with Other Features
 --------------------------------
 
