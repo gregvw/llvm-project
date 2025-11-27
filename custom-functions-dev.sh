@@ -113,6 +113,8 @@ ${GREEN}Test Categories:${NC}
 
   ${YELLOW}test sema${NC}             Run SemaCXX tests:
                           - customizable-functions-errors.cpp
+                          - customizable-functions-identifier-only.cpp
+                          - customizable-functions-external-linkage-only.cpp
 
   ${YELLOW}test sema-override${NC}    Run Sema ADL override tests:
                           - customizable-functions-sema-override.cpp
@@ -313,7 +315,9 @@ run_tests() {
             echo ""
             print_info "Sema tests..."
             ./bin/llvm-lit -v \
-                "${LLVM_DIR}/clang/test/SemaCXX/customizable-functions-errors.cpp"
+                "${LLVM_DIR}/clang/test/SemaCXX/customizable-functions-errors.cpp" \
+                "${LLVM_DIR}/clang/test/SemaCXX/customizable-functions-identifier-only.cpp" \
+                "${LLVM_DIR}/clang/test/SemaCXX/customizable-functions-external-linkage-only.cpp"
 
             echo ""
             print_info "Sema override tests..."
@@ -352,7 +356,9 @@ run_tests() {
         sema)
             print_info "Running Sema tests only"
             ./bin/llvm-lit -v \
-                "${LLVM_DIR}/clang/test/SemaCXX/customizable-functions-errors.cpp"
+                "${LLVM_DIR}/clang/test/SemaCXX/customizable-functions-errors.cpp" \
+                "${LLVM_DIR}/clang/test/SemaCXX/customizable-functions-identifier-only.cpp" \
+                "${LLVM_DIR}/clang/test/SemaCXX/customizable-functions-external-linkage-only.cpp"
             ;;
 
         sema-override|override)

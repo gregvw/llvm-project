@@ -110,6 +110,63 @@ The ``custom`` and ``inline`` specifiers are mutually exclusive:
 
    custom inline void foo();  // Error: cannot combine custom with inline
 
+Identifier Names Only
+---------------------
+
+The ``custom`` specifier can only be applied to functions with identifier names,
+not operators, conversion functions, or user-defined literals:
+
+.. code-block:: c++
+
+   // Valid: identifier name
+   custom int compute(int x);
+
+   // Invalid: operator overload
+   custom int operator+(int a, int b);  // Error
+
+   // Invalid: conversion function
+   custom operator bool();  // Error
+
+   // Invalid: user-defined literal
+   custom long double operator""_km(long double);  // Error
+
+**Rationale**: The customization mechanism uses the function name in attributes
+and override symbols. Non-identifier names cannot be represented in these
+contexts without complex escaping, and operators already have Argument-Dependent
+Lookup (ADL) for customization.
+
+External Linkage Only
+---------------------
+
+The ``custom`` specifier requires functions to have external linkage:
+
+.. code-block:: c++
+
+   // Valid: external linkage
+   custom int compute(int x);
+
+   // Valid: external linkage with extern "C"
+   extern "C" custom int process(int x);
+
+   // Valid: external linkage in namespace
+   namespace utils {
+     custom int helper(int x);
+   }
+
+   // Invalid: static (internal linkage)
+   static custom int foo(int x);  // Error
+
+   // Invalid: anonymous namespace (internal linkage)
+   namespace {
+     custom int bar(int x);  // Error
+   }
+
+**Rationale**: The implementation generates wrapper functions with ``linkonce_odr``
+linkage to enable link-time customization. Silently upgrading internal linkage
+to external linkage would violate the programmer's intent and cause unexpected
+ABI/visibility changes. The link-time override mechanism requires externally
+visible symbols.
+
 Semantic Meaning
 ================
 
@@ -144,6 +201,45 @@ The ``custom`` specifier is represented in the Abstract Syntax Tree (AST) as:
 - A bit flag in ``FunctionDeclBitfields`` (``IsCustom``)
 - Accessor methods: ``FunctionDecl::isCustom()`` and ``FunctionDecl::setCustom()``
 
+Override Resolution and Mangled Names
+--------------------------------------
+
+The customization mechanism uses **mangled names** for override resolution to
+ensure correct disambiguation across namespaces, overloads, and template
+instantiations:
+
+.. code-block:: c++
+
+   namespace lib1 {
+     custom int compute(int x);  // Mangled as: _ZN4lib17computeEi
+   }
+
+   namespace lib2 {
+     custom int compute(int x);  // Mangled as: _ZN4lib27computeEi
+   }
+
+   // Different overloads
+   custom int add(int a, int b);     // Mangled as: _ZN3addEii
+   custom double add(double a, double b);  // Mangled as: _ZN3addEdd
+
+Each customizable function's wrapper is annotated with two attributes:
+
+- ``clang-customizable-function``: Contains the **mangled name** for unique identification
+- ``clang-customizable-function-name``: Contains the **pretty name** for diagnostics
+
+At link time, the LLVM CustomizableFunctions pass looks for override symbols
+with the naming convention ``__custom_override_<mangled_name>``. For example:
+
+.. code-block:: c++
+
+   // To override lib1::compute(int):
+   extern "C" int __custom_override__ZN4lib17computeEi(int x) {
+     return x * 3;  // Custom implementation
+   }
+
+This mangled-name approach prevents collisions that would occur with unqualified
+names, ensuring that each function can be independently customized.
+
 Parser Recognition
 ------------------
 
@@ -175,6 +271,18 @@ The implementation provides clear error messages for invalid uses:
 
    custom inline void bar();
    // error: 'custom' and 'inline' cannot be combined
+
+   custom int operator+(int a, int b);
+   // error: 'custom' can only be applied to functions with identifier names,
+   //        not operators
+
+   static custom int helper(int x);
+   // error: 'custom' can only be applied to functions with external linkage
+
+   namespace {
+     custom int internal(int x);
+     // error: 'custom' can only be applied to functions with external linkage
+   }
 
 Examples
 ========
