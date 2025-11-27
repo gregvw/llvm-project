@@ -6546,8 +6546,13 @@ void CodeGenModule::EmitCustomizableFunctionDefinition(
   PublicFn->setAttributes(Attrs);
   PublicFn->setCallingConv(static_cast<llvm::CallingConv::ID>(CallingConv));
 
-  // Add attribute marking this as customizable
-  PublicFn->addFnAttr("clang-customizable-function", D->getName());
+  // Add attribute marking this as customizable with the mangled name.
+  // The mangled name provides unique identification across namespaces,
+  // overloads, and template instantiations, preventing collisions.
+  std::string MangledName = getMangledName(GD).str();
+  PublicFn->addFnAttr("clang-customizable-function", MangledName);
+  // Also store the unmangled name for diagnostics
+  PublicFn->addFnAttr("clang-customizable-function-name", D->getName());
 
   // Mark the wrapper for potential inlining
   PublicFn->addFnAttr(llvm::Attribute::InlineHint);

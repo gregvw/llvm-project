@@ -46,12 +46,21 @@ static bool processWrapper(Function &Wrapper, Module &M) {
     return false;
 
   auto Attr = Wrapper.getFnAttribute("clang-customizable-function");
-  StringRef LogicalName = Attr.getValueAsString();
+  StringRef MangledName = Attr.getValueAsString();
 
-  // Form the override function name.
-  std::string OverrideName = ("__custom_override_" + LogicalName).str();
+  // Get the pretty name for diagnostics (if available)
+  StringRef PrettyName = MangledName;
+  if (Wrapper.hasFnAttribute("clang-customizable-function-name")) {
+    PrettyName = Wrapper.getFnAttribute("clang-customizable-function-name")
+                     .getValueAsString();
+  }
+
+  // Form the override function name using the mangled name.
+  // This ensures unique identification across namespaces, overloads,
+  // and template instantiations.
+  std::string OverrideName = ("__custom_override_" + MangledName).str();
   Function *Override = M.getFunction(OverrideName);
-  
+
   // We only replace if the override exists and has a definition in this module
   // (or is available externally/linked in).
   if (!Override || Override->isDeclaration())
@@ -60,14 +69,15 @@ static bool processWrapper(Function &Wrapper, Module &M) {
   // Strict signature check: return type and argument types must match exactly.
   if (Override->getFunctionType() != Wrapper.getFunctionType()) {
     LLVM_DEBUG(dbgs() << "CustomizableFunctions: skipping wrapper "
-                      << Wrapper.getName() << " - override " << OverrideName
+                      << Wrapper.getName() << " ('" << PrettyName
+                      << "') - override " << OverrideName
                       << " has mismatching signature\n");
     return false;
   }
 
   LLVM_DEBUG(dbgs() << "CustomizableFunctions: overriding wrapper "
-                    << Wrapper.getName() << " with " << Override->getName()
-                    << "\n");
+                    << Wrapper.getName() << " ('" << PrettyName
+                    << "') with " << Override->getName() << "\n");
 
   // Remove existing body
   Wrapper.deleteBody();
