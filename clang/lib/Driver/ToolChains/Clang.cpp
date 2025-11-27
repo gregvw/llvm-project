@@ -6087,6 +6087,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   Args.addOptInFlag(CmdArgs, options::OPT_fcustomizable_functions,
                     options::OPT_fno_customizable_functions);
+  Args.addOptInFlag(CmdArgs, options::OPT_fcustomizable_functions_sema,
+                    options::OPT_fno_customizable_functions_sema);
 
   if (Arg *A = Args.getLastArg(options::OPT_fbasic_block_address_map,
                                options::OPT_fno_basic_block_address_map)) {
