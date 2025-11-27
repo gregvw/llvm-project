@@ -14649,11 +14649,26 @@ static ExprResult FinishOverloadedCallExpr(Sema &SemaRef, Scope *S, Expr *Fn,
   switch (OverloadResult) {
   case OR_Success: {
     FunctionDecl *FDecl = (*Best)->Function;
-    SemaRef.CheckUnresolvedLookupAccess(ULE, (*Best)->FoundDecl);
+    DeclAccessPair FoundDecl = (*Best)->FoundDecl;
+
+    // For custom functions, try to resolve to an override BEFORE
+    // DiagnoseUseOfDecl, which may trigger return type deduction and
+    // template instantiation. This allows the override to be selected
+    // before the original function's body is instantiated.
+    if (FDecl) {
+      FunctionDecl *Override =
+          SemaRef.TryResolveCustomOverride(FDecl, Args);
+      if (Override != FDecl) {
+        FDecl = Override;
+        FoundDecl = DeclAccessPair::make(Override, Override->getAccess());
+      }
+    }
+
+    SemaRef.CheckUnresolvedLookupAccess(ULE, FoundDecl);
     if (SemaRef.DiagnoseUseOfDecl(FDecl, ULE->getNameLoc()))
       return ExprError();
     ExprResult Res =
-        SemaRef.FixOverloadedFunctionReference(Fn, (*Best)->FoundDecl, FDecl);
+        SemaRef.FixOverloadedFunctionReference(Fn, FoundDecl, FDecl);
     if (Res.isInvalid())
       return ExprError();
     return SemaRef.BuildResolvedCallExpr(
