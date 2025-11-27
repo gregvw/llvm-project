@@ -19,4 +19,5 @@ double use_double(double x) {
   return id(x);
 }
 
-// CHECK-DAG: "clang-customizable-function"="id"
+// CHECK-DAG: "clang-customizable-function"="_Z2idIiET_S0_"
+// CHECK-DAG: "clang-customizable-function-name"="id"

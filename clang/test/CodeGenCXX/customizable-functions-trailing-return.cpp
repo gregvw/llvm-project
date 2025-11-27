@@ -13,7 +13,8 @@ custom auto get() -> int {
 }
 
 // CHECK: attributes #[[ATTR]] = {
-// CHECK-SAME: "clang-customizable-function"="get"
+// CHECK-SAME: "clang-customizable-function"="_Z3getv"
+// CHECK-SAME: "clang-customizable-function-name"="get"
 
 int test() {
   return get();

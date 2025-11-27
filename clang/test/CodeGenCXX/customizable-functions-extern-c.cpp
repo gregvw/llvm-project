@@ -16,6 +16,7 @@ extern "C" custom int foo(int x) {
 // Attribute definition.
 // CHECK: attributes #[[ATTR]] = {
 // CHECK-SAME: "clang-customizable-function"="foo"
+// CHECK-SAME: "clang-customizable-function-name"="foo"
 
 // Metadata nodes for customizable function.
 // CHECK: !clang.customizable

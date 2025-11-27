@@ -18,7 +18,8 @@ custom int foo(int x) {
 }
 
 // CHECK: attributes #[[ATTR]] = {
-// CHECK-SAME: "clang-customizable-function"="foo"
+// CHECK-SAME: "clang-customizable-function"="_Z3fooi"
+// CHECK-SAME: "clang-customizable-function-name"="foo"
 
 // CHECK: !clang.customizable = !{
 // CHECK: !clang.custom.default = !{

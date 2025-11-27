@@ -15,7 +15,8 @@ custom constexpr int mul(int a, int b) {
 }
 
 // CHECK: attributes #[[ATTR]] = {
-// CHECK-SAME: "clang-customizable-function"="mul"
+// CHECK-SAME: "clang-customizable-function"="_Z3mulii"
+// CHECK-SAME: "clang-customizable-function-name"="mul"
 
 int test() {
   return mul(3, 4);

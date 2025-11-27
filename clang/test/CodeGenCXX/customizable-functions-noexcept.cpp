@@ -15,7 +15,8 @@ custom int safe(int* x) noexcept {
 }
 
 // CHECK: attributes #[[ATTR]] = {
-// CHECK-SAME: "clang-customizable-function"="safe"
+// CHECK-SAME: "clang-customizable-function"="_Z4safePi"
+// CHECK-SAME: "clang-customizable-function-name"="safe"
 
 int test(int* p) {
   return safe(p);

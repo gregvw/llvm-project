@@ -14,7 +14,8 @@ namespace math {
   }
 
   // CHECK: attributes #[[ATTR]] = {
-  // CHECK-SAME: "clang-customizable-function"="add"
+  // CHECK-SAME: "clang-customizable-function"="_ZN4math3addEii"
+  // CHECK-SAME: "clang-customizable-function-name"="add"
 }
 
 int test() {

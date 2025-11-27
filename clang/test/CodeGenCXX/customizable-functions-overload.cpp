@@ -13,7 +13,7 @@ custom int add(int a, int b) {
 }
 
 // CHECK-LABEL: define linkonce_odr{{.*}} double @_Z3adddd(double noundef %a, double noundef %b)
-// CHECK-SAME: #[[ATTR]]
+// CHECK-SAME: #[[ATTR2:[0-9]+]]
 // CHECK: tail call double @_Z3adddd.default
 
 // CHECK-LABEL: define internal{{.*}} double @_Z3adddd.default
@@ -22,9 +22,14 @@ custom double add(double a, double b) {
   return a + b;
 }
 
-// Both overloads share the same attributes, so they use the same attribute group
+// Each overload has different mangled names, so they get separate attribute groups
 // CHECK-DAG: attributes #[[ATTR]] = {
-// CHECK-SAME: "clang-customizable-function"="add"
+// CHECK-SAME: "clang-customizable-function"="_Z3addii"
+// CHECK-SAME: "clang-customizable-function-name"="add"
+
+// CHECK-DAG: attributes #[[ATTR2]] = {
+// CHECK-SAME: "clang-customizable-function"="_Z3adddd"
+// CHECK-SAME: "clang-customizable-function-name"="add"
 
 int test_int() {
   return add(1, 2);

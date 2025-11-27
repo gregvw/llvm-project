@@ -19,7 +19,8 @@ custom void transform(Point& p1, Point& p2) {
 }
 
 // CHECK: attributes #[[ATTR]] = {
-// CHECK-SAME: "clang-customizable-function"="transform"
+// CHECK-SAME: "clang-customizable-function"="_Z9transformR5PointS0_"
+// CHECK-SAME: "clang-customizable-function-name"="transform"
 
 void test() {
   Point a{1, 2}, b{3, 4};

@@ -18,7 +18,8 @@ custom void process(int* data, int size) {
 }
 
 // CHECK: attributes #[[ATTR]] = {
-// CHECK-SAME: "clang-customizable-function"="process"
+// CHECK-SAME: "clang-customizable-function"="_Z7processPii"
+// CHECK-SAME: "clang-customizable-function-name"="process"
 
 void test() {
   int arr[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
