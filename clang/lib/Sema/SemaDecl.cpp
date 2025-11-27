@@ -10154,6 +10154,20 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
           Diag(D.getDeclSpec().getCustomSpecLoc(),
                diag::err_custom_with_inline);
           NewFD->setInvalidDecl();
+        } else if (!NewFD->getDeclName().isIdentifier()) {
+          // Check that the function name is a simple identifier
+          // (not an operator, conversion function, or user-defined literal)
+          DeclarationName::NameKind Kind = NewFD->getDeclName().getNameKind();
+          unsigned DiagSel;
+          if (Kind == DeclarationName::CXXOperatorName)
+            DiagSel = 0; // operators
+          else if (Kind == DeclarationName::CXXConversionFunctionName)
+            DiagSel = 1; // conversion functions
+          else // DeclarationName::CXXLiteralOperatorName
+            DiagSel = 2; // user-defined literals
+          Diag(D.getDeclSpec().getCustomSpecLoc(),
+               diag::err_custom_requires_identifier) << DiagSel;
+          NewFD->setInvalidDecl();
         } else {
           NewFD->setCustom(true);
         }
