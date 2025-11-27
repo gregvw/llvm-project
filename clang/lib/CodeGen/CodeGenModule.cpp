@@ -6582,7 +6582,14 @@ void CodeGenModule::EmitCustomizableFunctionDefinition(
   ConstructAttributeList(DefaultFn->getName(), FI, CalleeInfo, DefaultAttrs,
                          DefaultCallingConv, /*AttrOnCallSite=*/false,
                          /*IsThunk=*/false);
-  // Remove noundef from return type (we don't want noundef on return type of .default)
+  // Remove noundef from return type of .default implementation.
+  // Rationale: The wrapper function maintains the noundef contract with callers,
+  // but the .default body is internal and only reachable through the wrapper's
+  // tail call. Removing noundef prevents potential UB if the implementation has
+  // code paths that could produce undef values (which would violate noundef).
+  // The wrapper's noundef attribute ensures callers see the ABI guarantee, while
+  // the .default implementation isn't directly exposed. When LTO substitutes an
+  // override, the wrapper still enforces noundef on whatever it calls.
   DefaultAttrs = DefaultAttrs.removeRetAttribute(Ctx, llvm::Attribute::NoUndef);
   DefaultFn->setAttributes(DefaultAttrs);
   DefaultFn->setCallingConv(static_cast<llvm::CallingConv::ID>(DefaultCallingConv));
