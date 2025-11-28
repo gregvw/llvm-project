@@ -20,6 +20,7 @@
 #   test all              - Run ALL customizable function tests
 #   test codegen          - Run CodeGen tests only
 #   test sema             - Run Sema tests only
+#   test tidy             - Run clang-tidy module tests only
 #   test parse            - Run Parser tests only
 #   test [pattern]        - Run tests matching pattern
 #
@@ -123,6 +124,9 @@ ${GREEN}Test Categories:${NC}
                           - basic-override.ll
                           - no-override.ll
 
+  ${YELLOW}test tidy${NC}             Run clang-tidy module tests:
+                          - customizable/suggest-custom.cpp
+
   ${YELLOW}test parse${NC}            Run Parser tests (if any)
 
   ${YELLOW}test [pattern]${NC}        Run tests matching custom pattern
@@ -206,7 +210,7 @@ configure_build() {
     cmake -G Ninja \
         -DCMAKE_BUILD_TYPE="${cmake_build_type}" \
         -DCMAKE_INSTALL_PREFIX="${INSTALL_DIR}" \
-        -DLLVM_ENABLE_PROJECTS="clang" \
+        -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra" \
         -DLLVM_TARGETS_TO_BUILD="X86" \
         -DLLVM_INCLUDE_TESTS=ON \
         -DLLVM_INCLUDE_EXAMPLES=OFF \
@@ -252,8 +256,8 @@ build_target() {
     # When building clang, also build required test infrastructure
     local targets="${target}"
     if [ "${target}" = "clang" ]; then
-        targets="clang opt llvm-config FileCheck"
-        print_info "Also building test tools: opt, llvm-config, FileCheck"
+        targets="clang opt llvm-config FileCheck clang-tidy"
+        print_info "Also building test tools: opt, llvm-config, FileCheck, clang-tidy"
     fi
 
     if ninja -j "${jobs}" ${targets}; then
@@ -334,6 +338,11 @@ run_tests() {
             ./bin/llvm-lit -v \
                 "${LLVM_DIR}/llvm/test/Other/customizable-functions-pipeline.ll" \
                 "${LLVM_DIR}/clang/test/Driver/customizable-functions.cpp"
+
+            echo ""
+            print_info "Clang-tidy tests..."
+            ./bin/llvm-lit -v \
+                "${LLVM_DIR}/clang-tools-extra/test/clang-tidy/checkers/customizable/"
             ;;
 
         codegen)
@@ -371,6 +380,12 @@ run_tests() {
             print_info "Running LLVM transform tests only"
             ./bin/llvm-lit -v \
                 "${LLVM_DIR}/llvm/test/Transforms/CustomizableFunctions/"
+            ;;
+
+        tidy|clang-tidy)
+            print_info "Running clang-tidy module tests only"
+            ./bin/llvm-lit -v \
+                "${LLVM_DIR}/clang-tools-extra/test/clang-tidy/checkers/customizable/"
             ;;
 
         parse|parser)

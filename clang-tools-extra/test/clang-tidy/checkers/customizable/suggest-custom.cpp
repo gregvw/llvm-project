@@ -1,4 +1,4 @@
-// RUN: %check_clang_tidy -std=c++20 -fcustomizable-functions %s customizable-suggest-custom %t
+// RUN: %check_clang_tidy --extra-arg=-fcustomizable-functions --extra-arg=-std=c++20 %s customizable-suggest-custom %t
 
 // Functions that should trigger the check
 
