@@ -783,7 +783,7 @@ void ASTDeclWriter::VisitDeclaratorDecl(DeclaratorDecl *D) {
 }
 
 void ASTDeclWriter::VisitFunctionDecl(FunctionDecl *D) {
-  static_assert(DeclContext::NumFunctionDeclBits == 45,
+  static_assert(DeclContext::NumFunctionDeclBits == 46,
                 "You need to update the serializer after you change the "
                 "FunctionDeclBits");
 
