@@ -368,6 +368,8 @@ private:
   unsigned FS_virtual_specified : 1;
   LLVM_PREFERRED_TYPE(bool)
   unsigned FS_noreturn_specified : 1;
+  LLVM_PREFERRED_TYPE(bool)
+  unsigned FS_custom_specified : 1;
 
   // friend-specifier
   LLVM_PREFERRED_TYPE(bool)
