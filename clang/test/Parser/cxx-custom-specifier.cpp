@@ -31,8 +31,8 @@ struct TemplateStruct {
   custom void method();
 };
 
-// Duplicate custom (should warn)
-custom custom void f9(); // expected-warning {{duplicate 'custom' declaration specifier}}
+// Duplicate custom (should error)
+custom custom void f9(); // expected-error {{duplicate 'custom' declaration specifier}}
 
 // Custom on different declaration types
 namespace N {
@@ -45,5 +45,3 @@ public:
   custom C();  // custom constructor
   custom ~C(); // custom destructor
 };
-
-// expected-no-diagnostics (except for the duplicate custom warning above)
