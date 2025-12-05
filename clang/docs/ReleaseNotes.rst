@@ -182,6 +182,16 @@ C++ Language Changes
   ``<=>``. This makes it possible to optimize certain facilities by using the ``<=>`` operation directly instead of
   doing multiple comparisons.
 
+- **Experimental**: Added support for the ``custom`` function specifier, enabled with ``-fcustomizable-functions``.
+  This contextual keyword allows marking free functions as customizable, enabling backend optimizations and
+  runtime/link-time replacement strategies. The ``custom`` specifier:
+
+  * Can only be applied to free functions (not member functions, constructors, or destructors)
+  * Is mutually exclusive with the ``inline`` specifier
+  * Remains available as an identifier in non-specifier contexts for backward compatibility
+
+  See :doc:`CustomizableFunctions` for complete documentation.
+
 C++2c Feature Support
 ^^^^^^^^^^^^^^^^^^^^^
 

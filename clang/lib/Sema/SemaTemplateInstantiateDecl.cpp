@@ -2833,6 +2833,9 @@ Decl *TemplateDeclInstantiator::VisitFunctionDecl(
   if (D->isInlined())
     Function->setImplicitlyInline();
 
+  if (D->isCustom())
+    Function->setCustom(true);
+
   if (QualifierLoc)
     Function->setQualifierInfo(QualifierLoc);
 

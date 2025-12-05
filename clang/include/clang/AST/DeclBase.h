@@ -1832,9 +1832,9 @@ protected:
     LLVM_PREFERRED_TYPE(bool)
     uint64_t FriendConstraintRefersToEnclosingTemplate : 1;
 
-    /// Indicates if the function has the custom specifier.
+    /// Indicates if the function is marked with 'custom' specifier
     LLVM_PREFERRED_TYPE(bool)
-    uint64_t HasCustomSpecifier : 1;
+    uint64_t IsCustom : 1;
   };
 
   /// Number of inherited and non-inherited bits in FunctionDeclBitfields.
@@ -1849,7 +1849,7 @@ protected:
     LLVM_PREFERRED_TYPE(FunctionDeclBitfields)
     uint64_t : NumFunctionDeclBits;
 
-    /// 19 bits to fit in the remaining available space.
+    /// 18 bits to fit in the remaining available space.
     /// Note that this makes CXXConstructorDeclBitfields take
     /// exactly 64 bits and thus the width of NumCtorInitializers
     /// will need to be shrunk if some bit is added to NumDeclContextBitfields,

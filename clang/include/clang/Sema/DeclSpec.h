@@ -414,7 +414,7 @@ private:
   SourceLocation FS_inlineLoc, FS_virtualLoc, FS_explicitLoc, FS_noreturnLoc,
       FS_customLoc;
   SourceLocation FS_explicitCloseParenLoc;
-  SourceLocation FS_forceinlineLoc;
+  SourceLocation FS_forceinlineLoc, FS_customLoc;
   SourceLocation FriendLoc, ModulePrivateLoc, ConstexprLoc;
   SourceLocation TQ_pipeLoc;
 

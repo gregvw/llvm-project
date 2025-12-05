@@ -2170,6 +2170,19 @@ def err_explicit_out_of_class : Error<
   "'explicit' can only be specified inside the class definition">;
 def err_explicit_non_ctor_or_conv_function : Error<
   "'explicit' can only be applied to a constructor or conversion function">;
+def err_custom_non_function : Error<
+  "'custom' can only appear on free functions">;
+def err_custom_on_special_member : Error<
+  "'custom' cannot be applied to %select{constructors|destructors}0">;
+def err_custom_on_member_function : Error<
+  "'custom' can only be applied to free functions, not member functions">;
+def err_custom_with_inline : Error<
+  "'custom' and 'inline' cannot be combined">;
+def err_custom_requires_identifier : Error<
+  "'custom' can only be applied to functions with identifier names, not "
+  "%select{operators|conversion functions|user-defined literals}0">;
+def err_custom_requires_external_linkage : Error<
+  "'custom' can only be applied to functions with external linkage">;
 def err_static_not_bitfield : Error<"static member %0 cannot be a bit-field">;
 def err_static_out_of_line : Error<
   "'static' can only be specified inside the class definition">;

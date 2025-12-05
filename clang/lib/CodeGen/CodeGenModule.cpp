@@ -6514,6 +6514,12 @@ void CodeGenModule::EmitGlobalFunctionDefinition(GlobalDecl GD,
                                                    /*DontDefer=*/true,
                                                    ForDefinition));
 
+  // Handle customizable functions specially
+  if (D->isCustom()) {
+    EmitCustomizableFunctionDefinition(GD, GV, FI, Ty);
+    return;
+  }
+
   // Already emitted.
   if (!GV->isDeclaration())
     return;
@@ -6567,6 +6573,151 @@ void CodeGenModule::EmitGlobalFunctionDefinition(GlobalDecl GD,
     AddGlobalDtor(Fn, GetPriority(DA), true);
   if (getLangOpts().OpenMP && D->hasAttr<OMPDeclareTargetDeclAttr>())
     getOpenMPRuntime().emitDeclareTargetFunction(D, GV);
+}
+
+void CodeGenModule::EmitCustomizableFunctionDefinition(
+    GlobalDecl GD, llvm::GlobalValue *GV, const CGFunctionInfo &FI,
+    llvm::FunctionType *Ty) {
+  const auto *D = cast<FunctionDecl>(GD.getDecl());
+  assert(D->isCustom() && "Expected customizable function");
+
+  llvm::LLVMContext &Ctx = getLLVMContext();
+
+  // Step 1: Use the existing function declaration (from GetAddrOfFunction)
+  // as the public interface function (the customizable entry point)
+  llvm::Function *PublicFn = cast<llvm::Function>(GV);
+
+  // Set properties properly (important for templates)
+  setGVProperties(PublicFn, GD);
+  MaybeHandleStaticInExternC(D, PublicFn);
+  maybeSetTrivialComdat(*D, *PublicFn);
+
+  // Override linkage to be linkonce_odr for customizable functions
+  // (they need ODR linkage to allow LTO to merge definitions)
+  PublicFn->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
+
+  // Apply proper attributes from CGFunctionInfo to ensure parameters have
+  // correct attributes like 'noundef', and the function has correct calling conv
+  llvm::AttributeList Attrs;
+  unsigned CallingConv;
+  CGCalleeInfo CalleeInfo(D->getType()->getAs<FunctionProtoType>(), D);
+  ConstructAttributeList(PublicFn->getName(), FI, CalleeInfo, Attrs, CallingConv,
+                         /*AttrOnCallSite=*/false, /*IsThunk=*/false);
+  PublicFn->setAttributes(Attrs);
+  PublicFn->setCallingConv(static_cast<llvm::CallingConv::ID>(CallingConv));
+
+  // Add attribute marking this as customizable with the mangled name.
+  // The mangled name provides unique identification across namespaces,
+  // overloads, and template instantiations, preventing collisions.
+  std::string MangledName = getMangledName(GD).str();
+  PublicFn->addFnAttr("clang-customizable-function", MangledName);
+  // Also store the unmangled name for diagnostics
+  PublicFn->addFnAttr("clang-customizable-function-name", D->getName());
+
+  // Mark the wrapper for potential inlining
+  PublicFn->addFnAttr(llvm::Attribute::InlineHint);
+
+  // Name the parameters to match the source code parameter names
+  unsigned ArgNo = 0;
+  for (auto *Param : D->parameters()) {
+    if (ArgNo < PublicFn->arg_size()) {
+      PublicFn->getArg(ArgNo)->setName(Param->getName());
+    }
+    ++ArgNo;
+  }
+
+  // Step 2: Create the default implementation function with .default suffix
+  std::string DefaultName = (getMangledName(GD) + ".default").str();
+  llvm::Function *DefaultFn = llvm::Function::Create(
+      Ty, llvm::GlobalValue::InternalLinkage, DefaultName, &getModule());
+
+  // Set basic properties for the default function
+  setGVProperties(DefaultFn, GD);
+
+  // Apply parameter attributes to DefaultFn (but not return attributes)
+  // The .default function should have parameter attributes like 'noundef' but
+  // should not have 'noundef' on the return type.
+  llvm::AttributeList DefaultAttrs;
+  unsigned DefaultCallingConv;
+  ConstructAttributeList(DefaultFn->getName(), FI, CalleeInfo, DefaultAttrs,
+                         DefaultCallingConv, /*AttrOnCallSite=*/false,
+                         /*IsThunk=*/false);
+  // Remove noundef from return type of .default implementation.
+  // Rationale: The wrapper function maintains the noundef contract with callers,
+  // but the .default body is internal and only reachable through the wrapper's
+  // tail call. Removing noundef prevents potential UB if the implementation has
+  // code paths that could produce undef values (which would violate noundef).
+  // The wrapper's noundef attribute ensures callers see the ABI guarantee, while
+  // the .default implementation isn't directly exposed. When LTO substitutes an
+  // override, the wrapper still enforces noundef on whatever it calls.
+  DefaultAttrs = DefaultAttrs.removeRetAttribute(Ctx, llvm::Attribute::NoUndef);
+  DefaultFn->setAttributes(DefaultAttrs);
+  DefaultFn->setCallingConv(static_cast<llvm::CallingConv::ID>(DefaultCallingConv));
+
+  // Name the parameters to match the source code parameter names
+  unsigned ArgNo2 = 0;
+  for (auto *Param : D->parameters()) {
+    if (ArgNo2 < DefaultFn->arg_size()) {
+      DefaultFn->getArg(ArgNo2)->setName(Param->getName());
+    }
+    ++ArgNo2;
+  }
+
+  // Step 3: Generate the wrapper body that calls the default implementation
+  llvm::BasicBlock *Entry = llvm::BasicBlock::Create(Ctx, "entry", PublicFn);
+  llvm::IRBuilder<> Builder(Entry);
+
+  // Collect arguments from the public function to pass to default
+  llvm::SmallVector<llvm::Value *, 8> Args;
+  for (llvm::Argument &Arg : PublicFn->args())
+    Args.push_back(&Arg);
+
+  // Call the default implementation
+  // Only name the call if it returns a value (void calls can't be named)
+  llvm::CallInst *Call = Ty->getReturnType()->isVoidTy()
+                             ? Builder.CreateCall(DefaultFn, Args)
+                             : Builder.CreateCall(DefaultFn, Args, "call");
+  Call->setTailCall(true);  // Optimize as tail call
+  Call->setCallingConv(DefaultFn->getCallingConv());
+
+  // Return the result
+  if (Ty->getReturnType()->isVoidTy())
+    Builder.CreateRetVoid();
+  else
+    Builder.CreateRet(Call);
+
+  // Set non-alias attributes on the wrapper
+  setNonAliasAttributes(GD, PublicFn);
+  SetLLVMFunctionAttributesForDefinition(D, PublicFn);
+
+  // Step 4: Generate the actual function body into the default implementation
+  CodeGenFunction(*this).GenerateCode(GD, DefaultFn, FI);
+  setNonAliasAttributes(GD, DefaultFn);
+  SetLLVMFunctionAttributesForDefinition(D, DefaultFn);
+
+  // Handle constructor/destructor attributes on the public function
+  auto GetPriority = [this](const auto *Attr) -> int {
+    Expr *E = Attr->getPriority();
+    if (E)
+      return E->EvaluateKnownConstInt(this->getContext()).getExtValue();
+    return Attr->DefaultPriority;
+  };
+
+  if (const ConstructorAttr *CA = D->getAttr<ConstructorAttr>())
+    AddGlobalCtor(PublicFn, GetPriority(CA));
+  if (const DestructorAttr *DA = D->getAttr<DestructorAttr>())
+    AddGlobalDtor(PublicFn, GetPriority(DA), true);
+
+  // Add module-level named metadata to tag customizable functions
+  llvm::NamedMDNode *CustomizableNMD =
+      getModule().getOrInsertNamedMetadata("clang.customizable");
+  llvm::Metadata *PublicMDs[] = {llvm::ConstantAsMetadata::get(PublicFn)};
+  CustomizableNMD->addOperand(llvm::MDNode::get(Ctx, PublicMDs));
+
+  llvm::NamedMDNode *DefaultNMD =
+      getModule().getOrInsertNamedMetadata("clang.custom.default");
+  llvm::Metadata *DefaultMDs[] = {llvm::ConstantAsMetadata::get(DefaultFn)};
+  DefaultNMD->addOperand(llvm::MDNode::get(Ctx, DefaultMDs));
 }
 
 void CodeGenModule::EmitAliasDefinition(GlobalDecl GD) {

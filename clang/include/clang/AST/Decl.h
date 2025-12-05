@@ -2928,6 +2928,13 @@ public:
   /// that was defined in the class body.
   bool isInlined() const { return FunctionDeclBits.IsInline; }
 
+  /// Determine whether the "custom" specifier was specified for this
+  /// function.
+  bool isCustom() const { return FunctionDeclBits.IsCustom; }
+
+  /// Set whether the "custom" specifier was specified for this function.
+  void setCustom(bool C = true) { FunctionDeclBits.IsCustom = C; }
+
   bool isInlineDefinitionExternallyVisible() const;
 
   bool isMSExternInline() const;

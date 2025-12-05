@@ -2316,6 +2316,8 @@ void TextNodeDumper::VisitFunctionDecl(const FunctionDecl *D) {
     OS << " inline";
   if (D->isVirtualAsWritten())
     OS << " virtual";
+  if (D->isCustom())
+    OS << " custom";
   if (D->isModulePrivate())
     OS << " __module_private__";
 

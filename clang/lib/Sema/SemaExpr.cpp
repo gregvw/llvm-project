@@ -6858,6 +6858,13 @@ ExprResult Sema::BuildResolvedCallExpr(Expr *Fn, NamedDecl *NDecl,
                                        SourceLocation RParenLoc, Expr *Config,
                                        bool IsExecConfig, ADLCallKind UsesADL) {
   FunctionDecl *FDecl = dyn_cast_or_null<FunctionDecl>(NDecl);
+
+  // For calls to 'custom' functions, try to resolve to an override.
+  // This is gated behind -fcustomizable-functions-sema and looks for
+  // a function named '<name>_override' with a matching signature.
+  if (FDecl)
+    FDecl = TryResolveCustomOverride(FDecl, Args);
+
   unsigned BuiltinID = (FDecl ? FDecl->getBuiltinID() : 0);
 
   // Functions with 'interrupt' attribute cannot be called directly.

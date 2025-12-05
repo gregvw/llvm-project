@@ -1079,11 +1079,12 @@ bool DeclSpec::setFunctionSpecNoreturn(SourceLocation Loc,
 }
 
 bool DeclSpec::setFunctionSpecCustom(SourceLocation Loc,
-                                     const char *&PrevSpec,
-                                     unsigned &DiagID) {
-  // 'custom custom' is not allowed.
+                                      const char *&PrevSpec,
+                                      unsigned &DiagID) {
+  // 'custom custom' is ok, but warn as this is likely not what the user
+  // intended.
   if (FS_custom_specified) {
-    DiagID = diag::err_duplicate_declspec;
+    DiagID = diag::warn_duplicate_declspec;
     PrevSpec = "custom";
     return true;
   }

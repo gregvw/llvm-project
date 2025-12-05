@@ -48,6 +48,7 @@
 #include "llvm/Transforms/IPO/CalledValuePropagation.h"
 #include "llvm/Transforms/IPO/ConstantMerge.h"
 #include "llvm/Transforms/IPO/CrossDSOCFI.h"
+#include "llvm/Transforms/IPO/CustomizableFunctions.h"
 #include "llvm/Transforms/IPO/DeadArgumentElimination.h"
 #include "llvm/Transforms/IPO/ElimAvailExtern.h"
 #include "llvm/Transforms/IPO/EmbedBitcodePass.h"
@@ -1821,6 +1822,11 @@ ModulePassManager PassBuilder::buildThinLTODefaultPipeline(
     OptimizationLevel Level, const ModuleSummaryIndex *ImportSummary) {
   ModulePassManager MPM;
 
+  // Run customizable-functions early so overrides are visible to the inliner.
+  // This pass rewrites wrappers marked with "clang-customizable-function" to
+  // call __custom_override_<name> functions when present and signature-compatible.
+  MPM.addPass(CustomizableFunctionsPass());
+
   // If we are invoking this without a summary index noting that we are linking
   // with a library containing the necessary APIs, remove any MemProf related
   // attributes and metadata.
@@ -1902,6 +1908,11 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
   ModulePassManager MPM;
 
   invokeFullLinkTimeOptimizationEarlyEPCallbacks(MPM, Level);
+
+  // Run customizable-functions early so overrides are visible to the inliner.
+  // This pass rewrites wrappers marked with "clang-customizable-function" to
+  // call __custom_override_<name> functions when present and signature-compatible.
+  MPM.addPass(CustomizableFunctionsPass());
 
   // If we are invoking this without a summary index noting that we are linking
   // with a library containing the necessary APIs, remove any MemProf related

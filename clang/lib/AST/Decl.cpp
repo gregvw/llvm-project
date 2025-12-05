@@ -3111,6 +3111,7 @@ FunctionDecl::FunctionDecl(Kind DK, ASTContext &C, DeclContext *DC,
       static_cast<unsigned char>(DeductionCandidate::Normal);
   FunctionDeclBits.HasODRHash = false;
   FunctionDeclBits.FriendConstraintRefersToEnclosingTemplate = false;
+  FunctionDeclBits.IsCustom = false;
 
   if (TrailingRequiresClause)
     setTrailingRequiresClause(TrailingRequiresClause);

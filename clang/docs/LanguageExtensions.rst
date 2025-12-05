@@ -16,6 +16,7 @@ Clang Language Extensions
    PointerAuthentication
    MatrixTypes
    CXXTypeAwareAllocators
+   CustomizableFunctions
 
 Introduction
 ============

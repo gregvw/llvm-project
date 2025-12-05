@@ -894,6 +894,7 @@ void ASTDeclWriter::VisitFunctionDecl(FunctionDecl *D) {
   FunctionDeclBits.addBit(D->usesSEHTry());
   FunctionDeclBits.addBit(D->isDestroyingOperatorDelete());
   FunctionDeclBits.addBit(D->isTypeAwareOperatorNewOrDelete());
+  FunctionDeclBits.addBit(D->isCustom());
   Record.push_back(FunctionDeclBits);
 
   Record.AddSourceLocation(D->getEndLoc());

@@ -10094,10 +10094,16 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
     bool isInline = D.getDeclSpec().isInlineSpecified();
     bool isVirtual = D.getDeclSpec().isVirtualSpecified();
     bool hasExplicit = D.getDeclSpec().hasExplicitSpecifier();
-    isFriend = D.getDeclSpec().isFriendSpecified();
     bool isCustom = D.getDeclSpec().isCustomSpecified();
-    if (isCustom)
-      NewFD->setCustomFunction(true);
+    isFriend = D.getDeclSpec().isFriendSpecified();
+
+    // Check for invalid combination of 'custom' and 'inline'
+    if (isCustom && isInline) {
+      Diag(D.getDeclSpec().getCustomSpecLoc(), diag::err_custom_with_inline);
+      NewFD->setInvalidDecl();
+    }
+
+
     if (ImplicitInlineCXX20 && isFriend && D.isFunctionDefinition()) {
       // Pre-C++20 [class.friend]p5
       //   A function can be defined in a friend declaration of a
@@ -10122,12 +10128,65 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
         Diag(D.getDeclSpec().getVirtualSpecLoc(), diag::err_virtual_in_union);
         NewFD->setInvalidDecl();
       }
+
+      // Check for 'custom' on member functions
+      if (D.getDeclSpec().isCustomSpecified()) {
+        // 'custom' is only allowed on free functions, not member functions
+        if (isa<CXXConstructorDecl>(NewFD)) {
+          Diag(D.getDeclSpec().getCustomSpecLoc(),
+               diag::err_custom_on_special_member) << 0;
+          NewFD->setInvalidDecl();
+        } else if (isa<CXXDestructorDecl>(NewFD)) {
+          Diag(D.getDeclSpec().getCustomSpecLoc(),
+               diag::err_custom_on_special_member) << 1;
+          NewFD->setInvalidDecl();
+        } else {
+          Diag(D.getDeclSpec().getCustomSpecLoc(),
+               diag::err_custom_on_member_function);
+          NewFD->setInvalidDecl();
+        }
+      }
+
       if ((Parent->isClass() || Parent->isStruct()) &&
           Parent->hasAttr<SYCLSpecialClassAttr>() &&
           NewFD->getKind() == Decl::Kind::CXXMethod && NewFD->getIdentifier() &&
           NewFD->getName() == "__init" && D.isFunctionDefinition()) {
         if (auto *Def = Parent->getDefinition())
           Def->setInitMethod(true);
+      }
+    } else {
+      // For non-member (free) functions, set the custom flag if specified
+      if (isCustom && !NewFD->isInvalidDecl()) {
+        // Check that custom and inline are not combined
+        if (D.getDeclSpec().isInlineSpecified()) {
+          Diag(D.getDeclSpec().getCustomSpecLoc(),
+               diag::err_custom_with_inline);
+          NewFD->setInvalidDecl();
+        } else if (!NewFD->getDeclName().isIdentifier()) {
+          // Check that the function name is a simple identifier
+          // (not an operator, conversion function, or user-defined literal)
+          DeclarationName::NameKind Kind = NewFD->getDeclName().getNameKind();
+          unsigned DiagSel;
+          if (Kind == DeclarationName::CXXOperatorName)
+            DiagSel = 0; // operators
+          else if (Kind == DeclarationName::CXXConversionFunctionName)
+            DiagSel = 1; // conversion functions
+          else // DeclarationName::CXXLiteralOperatorName
+            DiagSel = 2; // user-defined literals
+          Diag(D.getDeclSpec().getCustomSpecLoc(),
+               diag::err_custom_requires_identifier) << DiagSel;
+          NewFD->setInvalidDecl();
+        } else if (D.getDeclSpec().getStorageClassSpec() == DeclSpec::SCS_static ||
+                   NewFD->getFormalLinkage() != Linkage::External) {
+          // Check that the function has external linkage.
+          // Reject static/internal linkage to prevent silent linkage upgrade
+          // and ensure the LTO override model works as intended.
+          Diag(D.getDeclSpec().getCustomSpecLoc(),
+               diag::err_custom_requires_external_linkage);
+          NewFD->setInvalidDecl();
+        } else {
+          NewFD->setCustom(true);
+        }
       }
     }
 

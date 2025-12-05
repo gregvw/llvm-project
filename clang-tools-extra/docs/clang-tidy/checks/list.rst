@@ -16,6 +16,7 @@ Clang-Tidy Checks
    clang-analyzer/*
    concurrency/*
    cppcoreguidelines/*
+   customizable/*
    darwin/*
    fuchsia/*
    google/*
@@ -218,6 +219,7 @@ Clang-Tidy Checks
    :doc:`cppcoreguidelines-special-member-functions <cppcoreguidelines/special-member-functions>`,
    :doc:`cppcoreguidelines-use-enum-class <cppcoreguidelines/use-enum-class>`,
    :doc:`cppcoreguidelines-virtual-class-destructor <cppcoreguidelines/virtual-class-destructor>`, "Yes"
+   :doc:`customizable-suggest-custom <customizable/suggest-custom>`, "Yes"
    :doc:`darwin-avoid-spinlock <darwin/avoid-spinlock>`,
    :doc:`darwin-dispatch-once-nonstatic <darwin/dispatch-once-nonstatic>`, "Yes"
    :doc:`fuchsia-default-arguments-calls <fuchsia/default-arguments-calls>`,

@@ -3,6 +3,9 @@ if(NOT CLANG_BUILD_EXAMPLES)
   set(EXCLUDE_FROM_ALL ON)
 endif()
 
+# Customizable functions examples (standalone executables)
+add_subdirectory(CustomizableFunctions)
+
 if(CLANG_PLUGIN_SUPPORT)
   add_subdirectory(LLVMPrintFunctionNames)
   add_subdirectory(PrintFunctionNames)

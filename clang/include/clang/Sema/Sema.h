@@ -10753,6 +10753,18 @@ public:
       LookupResult &R, TemplateArgumentListInfo *ExplicitTemplateArgs,
       ArrayRef<Expr *> Args, OverloadCandidateSet &CandidateSet);
 
+  /// For a call to a 'custom' function, try to find and return an override
+  /// function that should be called instead. Currently, this looks for a
+  /// function named '<name>_override' in the same context with a matching
+  /// signature.
+  ///
+  /// If no suitable override is found, or if the -fcustomizable-functions-sema
+  /// flag is not enabled, returns the original function unchanged.
+  ///
+  /// This provides a single choke point for all custom function override
+  /// behavior, allowing future experimentation with richer override semantics.
+  FunctionDecl *TryResolveCustomOverride(FunctionDecl *F, ArrayRef<Expr *> Args);
+
   // An enum used to represent the different possible results of building a
   // range-based for loop.
   enum ForRangeStatus {

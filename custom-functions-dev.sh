@@ -129,10 +129,6 @@ ${GREEN}Test Categories:${NC}
 
   ${YELLOW}test parse${NC}            Run Parser tests (if any)
 
-  ${YELLOW}test custom${NC}           Run custom keyword tests:
-                          - cxx-custom-specifier.cpp (Parser)
-                          - custom-specifier.cpp (Sema)
-
   ${YELLOW}test [pattern]${NC}        Run tests matching custom pattern
 
 ${GREEN}Examples:${NC}
@@ -347,12 +343,6 @@ run_tests() {
             print_info "Clang-tidy tests..."
             ./bin/llvm-lit -v \
                 "${LLVM_DIR}/clang-tools-extra/test/clang-tidy/checkers/customizable/"
-
-            echo ""
-            print_info "Custom keyword tests..."
-            ./bin/llvm-lit -v \
-                "${LLVM_DIR}/clang/test/Parser/cxx-custom-specifier.cpp" \
-                "${LLVM_DIR}/clang/test/SemaCXX/custom-specifier.cpp"
             ;;
 
         codegen)
@@ -401,13 +391,6 @@ run_tests() {
         parse|parser)
             print_info "Running Parser tests (if any exist)"
             ./bin/llvm-lit -v "${LLVM_DIR}/clang/test/Parser" --filter="customizable" || true
-            ;;
-
-        custom)
-            print_info "Running custom keyword tests"
-            ./bin/llvm-lit -v \
-                "${LLVM_DIR}/clang/test/Parser/cxx-custom-specifier.cpp" \
-                "${LLVM_DIR}/clang/test/SemaCXX/custom-specifier.cpp"
             ;;
 
         *)
