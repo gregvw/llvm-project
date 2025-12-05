@@ -7854,6 +7854,7 @@ Sema::ActOnCompoundRequirement(
 concepts::ExprRequirement *
 Sema::BuildExprRequirement(
     Expr *E, bool IsSimple, SourceLocation NoexceptLoc,
+    SourceLocation CustomLoc,
     concepts::ExprRequirement::ReturnTypeRequirement ReturnTypeRequirement) {
   auto Status = concepts::ExprRequirement::SS_Satisfied;
   ConceptSpecializationExpr *SubstitutedConstraintExpr = nullptr;
@@ -7862,7 +7863,27 @@ Sema::BuildExprRequirement(
     Status = concepts::ExprRequirement::SS_Dependent;
   else if (NoexceptLoc.isValid() && canThrow(E) == CanThrowResult::CT_Can)
     Status = concepts::ExprRequirement::SS_NoexceptNotMet;
-  else if (ReturnTypeRequirement.isSubstitutionFailure())
+  else if (CustomLoc.isValid()) {
+    // Check if the expression calls a function marked with 'custom'
+    bool IsCustomFunction = false;
+    if (auto *Call = dyn_cast<CallExpr>(E->IgnoreParenImpCasts())) {
+      if (auto *Callee = Call->getDirectCallee()) {
+        IsCustomFunction = Callee->isCustom();
+      }
+    } else if (auto *DRE = dyn_cast<DeclRefExpr>(E->IgnoreParenImpCasts())) {
+      if (auto *FD = dyn_cast<FunctionDecl>(DRE->getDecl())) {
+        IsCustomFunction = FD->isCustom();
+      }
+    } else if (auto *ME = dyn_cast<MemberExpr>(E->IgnoreParenImpCasts())) {
+      if (auto *FD = dyn_cast<FunctionDecl>(ME->getMemberDecl())) {
+        IsCustomFunction = FD->isCustom();
+      }
+    }
+
+    if (!IsCustomFunction)
+      Status = concepts::ExprRequirement::SS_CustomNotMet;
+  }
+  if (ReturnTypeRequirement.isSubstitutionFailure())
     Status = concepts::ExprRequirement::SS_TypeRequirementSubstitutionFailure;
   else if (ReturnTypeRequirement.isTypeConstraint()) {
     // C++2a [expr.prim.req]p1.3.3
@@ -7897,23 +7918,23 @@ Sema::BuildExprRequirement(
                               IDC->printPretty(OS, /*Helper=*/nullptr,
                                                getPrintingPolicy());
                             }),
-          IsSimple, NoexceptLoc, ReturnTypeRequirement);
+          IsSimple, NoexceptLoc, CustomLoc, ReturnTypeRequirement);
     }
     if (!SubstitutedConstraintExpr->isSatisfied())
       Status = concepts::ExprRequirement::SS_ConstraintsNotSatisfied;
   }
   return new (Context) concepts::ExprRequirement(E, IsSimple, NoexceptLoc,
-                                                 ReturnTypeRequirement, Status,
-                                                 SubstitutedConstraintExpr);
+                                                 CustomLoc, ReturnTypeRequirement,
+                                                 Status, SubstitutedConstraintExpr);
 }
 
 concepts::ExprRequirement *
 Sema::BuildExprRequirement(
     concepts::Requirement::SubstitutionDiagnostic *ExprSubstitutionDiagnostic,
-    bool IsSimple, SourceLocation NoexceptLoc,
+    bool IsSimple, SourceLocation NoexceptLoc, SourceLocation CustomLoc,
     concepts::ExprRequirement::ReturnTypeRequirement ReturnTypeRequirement) {
   return new (Context) concepts::ExprRequirement(ExprSubstitutionDiagnostic,
-                                                 IsSimple, NoexceptLoc,
+                                                 IsSimple, NoexceptLoc, CustomLoc,
                                                  ReturnTypeRequirement);
 }
 
