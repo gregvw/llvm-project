@@ -1748,6 +1748,10 @@ static void diagnoseUnsatisfiedRequirement(Sema &S,
     S.Diag(Req->getNoexceptLoc(), diag::note_expr_requirement_noexcept_not_met)
         << (int)First << Req->getExpr();
     break;
+  case concepts::ExprRequirement::SS_CustomNotMet:
+    S.Diag(Req->getCustomLoc(), diag::note_expr_requirement_custom_not_met)
+        << (int)First << Req->getExpr();
+    break;
   case concepts::ExprRequirement::SS_TypeRequirementSubstitutionFailure: {
     auto *SubstDiag =
         Req->getReturnTypeRequirement().getSubstitutionDiagnostic();

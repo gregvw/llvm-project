@@ -3178,6 +3178,8 @@ def note_expr_requirement_expr_unknown_substitution_error : Note<
   "%select{and|because}0 '%1' would be invalid">;
 def note_expr_requirement_noexcept_not_met
     : Note<"%select{and|because}0 %1 may throw an exception">;
+def note_expr_requirement_custom_not_met
+    : Note<"%select{and|because}0 %1 is not marked with 'custom' specifier">;
 def note_expr_requirement_type_requirement_substitution_error : Note<
   "%select{and|because}0 '%1' would be invalid: %2">;
 def note_expr_requirement_type_requirement_unknown_substitution_error : Note<
