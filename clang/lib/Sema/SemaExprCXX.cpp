@@ -7804,15 +7804,16 @@ concepts::Requirement *Sema::ActOnTypeRequirement(
 }
 
 concepts::Requirement *
-Sema::ActOnCompoundRequirement(Expr *E, SourceLocation NoexceptLoc) {
-  return BuildExprRequirement(E, /*IsSimple=*/false, NoexceptLoc,
+Sema::ActOnCompoundRequirement(Expr *E, SourceLocation NoexceptLoc,
+                                SourceLocation CustomLoc) {
+  return BuildExprRequirement(E, /*IsSimple=*/false, NoexceptLoc, CustomLoc,
                               /*ReturnTypeRequirement=*/{});
 }
 
 concepts::Requirement *
 Sema::ActOnCompoundRequirement(
-    Expr *E, SourceLocation NoexceptLoc, CXXScopeSpec &SS,
-    TemplateIdAnnotation *TypeConstraint, unsigned Depth) {
+    Expr *E, SourceLocation NoexceptLoc, SourceLocation CustomLoc,
+    CXXScopeSpec &SS, TemplateIdAnnotation *TypeConstraint, unsigned Depth) {
   // C++2a [expr.prim.req.compound] p1.3.3
   //   [..] the expression is deduced against an invented function template
   //   F [...] F is a void function template with a single type template
@@ -7837,7 +7838,8 @@ Sema::ActOnCompoundRequirement(
                           /*EllipsisLoc=*/SourceLocation(),
                           /*AllowUnexpandedPack=*/true))
     // Just produce a requirement with no type requirements.
-    return BuildExprRequirement(E, /*IsSimple=*/false, NoexceptLoc, {});
+    return BuildExprRequirement(E, /*IsSimple=*/false, NoexceptLoc, CustomLoc,
+                                {});
 
   auto *TPL = TemplateParameterList::Create(Context, SourceLocation(),
                                             SourceLocation(),
@@ -7845,7 +7847,7 @@ Sema::ActOnCompoundRequirement(
                                             SourceLocation(),
                                             /*RequiresClause=*/nullptr);
   return BuildExprRequirement(
-      E, /*IsSimple=*/false, NoexceptLoc,
+      E, /*IsSimple=*/false, NoexceptLoc, CustomLoc,
       concepts::ExprRequirement::ReturnTypeRequirement(TPL));
 }
 

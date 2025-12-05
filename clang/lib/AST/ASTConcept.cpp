@@ -137,32 +137,36 @@ const StreamingDiagnostic &clang::operator<<(const StreamingDiagnostic &DB,
 
 concepts::ExprRequirement::ExprRequirement(
     Expr *E, bool IsSimple, SourceLocation NoexceptLoc,
-    ReturnTypeRequirement Req, SatisfactionStatus Status,
+    SourceLocation CustomLoc, ReturnTypeRequirement Req,
+    SatisfactionStatus Status,
     ConceptSpecializationExpr *SubstitutedConstraintExpr)
     : Requirement(IsSimple ? RK_Simple : RK_Compound, Status == SS_Dependent,
                   Status == SS_Dependent &&
                       (E->containsUnexpandedParameterPack() ||
                        Req.containsUnexpandedParameterPack()),
                   Status == SS_Satisfied),
-      Value(E), NoexceptLoc(NoexceptLoc), TypeReq(Req),
+      Value(E), NoexceptLoc(NoexceptLoc), CustomLoc(CustomLoc), TypeReq(Req),
       SubstitutedConstraintExpr(SubstitutedConstraintExpr), Status(Status) {
-  assert((!IsSimple || (Req.isEmpty() && NoexceptLoc.isInvalid())) &&
-         "Simple requirement must not have a return type requirement or a "
-         "noexcept specification");
+  assert((!IsSimple ||
+          (Req.isEmpty() && NoexceptLoc.isInvalid() && CustomLoc.isInvalid())) &&
+         "Simple requirement must not have a return type requirement, "
+         "noexcept specification, or custom specification");
   assert((Status > SS_TypeRequirementSubstitutionFailure &&
           Req.isTypeConstraint()) == (SubstitutedConstraintExpr != nullptr));
 }
 
 concepts::ExprRequirement::ExprRequirement(
     SubstitutionDiagnostic *ExprSubstDiag, bool IsSimple,
-    SourceLocation NoexceptLoc, ReturnTypeRequirement Req)
+    SourceLocation NoexceptLoc, SourceLocation CustomLoc,
+    ReturnTypeRequirement Req)
     : Requirement(IsSimple ? RK_Simple : RK_Compound, Req.isDependent(),
                   Req.containsUnexpandedParameterPack(), /*IsSatisfied=*/false),
-      Value(ExprSubstDiag), NoexceptLoc(NoexceptLoc), TypeReq(Req),
-      Status(SS_ExprSubstitutionFailure) {
-  assert((!IsSimple || (Req.isEmpty() && NoexceptLoc.isInvalid())) &&
-         "Simple requirement must not have a return type requirement or a "
-         "noexcept specification");
+      Value(ExprSubstDiag), NoexceptLoc(NoexceptLoc), CustomLoc(CustomLoc),
+      TypeReq(Req), Status(SS_ExprSubstitutionFailure) {
+  assert((!IsSimple ||
+          (Req.isEmpty() && NoexceptLoc.isInvalid() && CustomLoc.isInvalid())) &&
+         "Simple requirement must not have a return type requirement, "
+         "noexcept specification, or custom specification");
 }
 
 concepts::ExprRequirement::ReturnTypeRequirement::ReturnTypeRequirement(

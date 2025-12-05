@@ -3217,8 +3217,11 @@ ExprResult Parser::ParseRequiresExpression() {
         concepts::Requirement *Req = nullptr;
         SourceLocation NoexceptLoc;
         TryConsumeToken(tok::kw_noexcept, NoexceptLoc);
+        SourceLocation CustomLoc;
+        TryConsumeToken(tok::kw_custom, CustomLoc);
         if (Tok.is(tok::semi)) {
-          Req = Actions.ActOnCompoundRequirement(Expression.get(), NoexceptLoc);
+          Req = Actions.ActOnCompoundRequirement(Expression.get(), NoexceptLoc,
+                                                  CustomLoc);
           if (Req)
             Requirements.push_back(Req);
           break;
@@ -3246,8 +3249,8 @@ ExprResult Parser::ParseRequiresExpression() {
         }
 
         Req = Actions.ActOnCompoundRequirement(
-            Expression.get(), NoexceptLoc, SS, takeTemplateIdAnnotation(Tok),
-            TemplateParameterDepth);
+            Expression.get(), NoexceptLoc, CustomLoc, SS,
+            takeTemplateIdAnnotation(Tok), TemplateParameterDepth);
         ConsumeAnnotationToken();
         if (Req)
           Requirements.push_back(Req);
