@@ -1831,10 +1831,14 @@ protected:
     // refers to an enclosing template for hte purposes of [temp.friend]p9.
     LLVM_PREFERRED_TYPE(bool)
     uint64_t FriendConstraintRefersToEnclosingTemplate : 1;
+
+    /// Indicates if the function has the custom specifier.
+    LLVM_PREFERRED_TYPE(bool)
+    uint64_t HasCustomSpecifier : 1;
   };
 
   /// Number of inherited and non-inherited bits in FunctionDeclBitfields.
-  enum { NumFunctionDeclBits = NumDeclContextBits + 32 };
+  enum { NumFunctionDeclBits = NumDeclContextBits + 33 };
 
   /// Stores the bits used by CXXConstructorDecl. If modified
   /// NumCXXConstructorDeclBits and the accessor
