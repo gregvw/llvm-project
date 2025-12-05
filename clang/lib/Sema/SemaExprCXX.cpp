@@ -7770,6 +7770,7 @@ IfExistsResult Sema::CheckMicrosoftIfExistsSymbol(Scope *S,
 concepts::Requirement *Sema::ActOnSimpleRequirement(Expr *E) {
   return BuildExprRequirement(E, /*IsSimple=*/true,
                               /*NoexceptLoc=*/SourceLocation(),
+                              /*CustomLoc=*/SourceLocation(),
                               /*ReturnTypeRequirement=*/{});
 }
 
