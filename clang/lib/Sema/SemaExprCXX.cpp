@@ -7886,7 +7886,9 @@ Sema::BuildExprRequirement(
   }
   if (ReturnTypeRequirement.isSubstitutionFailure())
     Status = concepts::ExprRequirement::SS_TypeRequirementSubstitutionFailure;
-  else if (ReturnTypeRequirement.isTypeConstraint()) {
+  else if (ReturnTypeRequirement.isTypeConstraint() &&
+           (Status == concepts::ExprRequirement::SS_Satisfied ||
+            Status == concepts::ExprRequirement::SS_Dependent)) {
     // C++2a [expr.prim.req]p1.3.3
     //     The immediately-declared constraint ([temp]) of decltype((E)) shall
     //     be satisfied.

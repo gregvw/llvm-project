@@ -324,6 +324,12 @@ run_tests() {
                 "${LLVM_DIR}/clang/test/SemaCXX/customizable-functions-external-linkage-only.cpp"
 
             echo ""
+            print_info "Custom requires clause tests..."
+            ./bin/llvm-lit -v \
+                "${LLVM_DIR}/clang/test/Parser/cxx-custom-requires.cpp" \
+                "${LLVM_DIR}/clang/test/SemaCXX/custom-requires-clause.cpp"
+
+            echo ""
             print_info "Sema override tests..."
             ./bin/llvm-lit -v \
                 "${LLVM_DIR}/clang/test/CodeGenCXX/customizable-functions-sema-override.cpp"
@@ -367,7 +373,15 @@ run_tests() {
             ./bin/llvm-lit -v \
                 "${LLVM_DIR}/clang/test/SemaCXX/customizable-functions-errors.cpp" \
                 "${LLVM_DIR}/clang/test/SemaCXX/customizable-functions-identifier-only.cpp" \
-                "${LLVM_DIR}/clang/test/SemaCXX/customizable-functions-external-linkage-only.cpp"
+                "${LLVM_DIR}/clang/test/SemaCXX/customizable-functions-external-linkage-only.cpp" \
+                "${LLVM_DIR}/clang/test/SemaCXX/custom-requires-clause.cpp"
+            ;;
+
+        custom|requires)
+            print_info "Running custom requires clause tests"
+            ./bin/llvm-lit -v \
+                "${LLVM_DIR}/clang/test/Parser/cxx-custom-requires.cpp" \
+                "${LLVM_DIR}/clang/test/SemaCXX/custom-requires-clause.cpp"
             ;;
 
         sema-override|override)
