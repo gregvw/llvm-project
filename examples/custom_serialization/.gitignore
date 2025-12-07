@@ -3,6 +3,8 @@ test_custom_simple
 test_tincup_simple
 test_custom
 test_tincup
+test_custom_serialization
+test_tincup_serialization
 
 # Test outputs
 output_custom*.txt
@@ -10,3 +12,14 @@ output_tincup*.txt
 
 # Generated files
 serialize_tincup_generated.hpp
+
+# CMake build directory
+build/
+cmake-build-*/
+
+# CMake cache
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+Testing/
