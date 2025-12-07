@@ -2,6 +2,9 @@
 #
 # This CMake file demonstrates that C++29 'custom' keyword produces
 # semantically identical behavior to C++20 tag_invoke CPO patterns.
+#
+# Key point: Custom version uses modified clang, TInCuP version uses
+# standard C++20 compiler - proving compatibility!
 
 cmake_minimum_required(VERSION 3.20)
 project(CustomTInCuPRegression LANGUAGES CXX)
@@ -45,6 +48,34 @@ endif()
 
 message(STATUS "Using TInCuP headers from: ${TINCUP_INCLUDE_DIR}")
 
+# Find standard C++20 compiler for TInCuP version
+# Try g++ first, then system clang++, then fall back to CMake's compiler
+find_program(SYSTEM_CXX_COMPILER
+  NAMES g++-13 g++-12 g++-11 g++ clang++-18 clang++-17 clang++-16 clang++
+  PATHS /usr/bin /usr/local/bin
+  DOC "Standard C++20 compiler for TInCuP version"
+)
+
+if(NOT SYSTEM_CXX_COMPILER)
+  set(SYSTEM_CXX_COMPILER ${CMAKE_CXX_COMPILER})
+  message(STATUS "Using CMake's default compiler for TInCuP version")
+else()
+  message(STATUS "Found system C++ compiler: ${SYSTEM_CXX_COMPILER}")
+endif()
+
+# Verify it supports C++20
+execute_process(
+  COMMAND ${SYSTEM_CXX_COMPILER} -std=c++20 -xc++ -E -
+  INPUT_FILE /dev/null
+  OUTPUT_QUIET
+  ERROR_QUIET
+  RESULT_VARIABLE CXX20_RESULT
+)
+
+if(NOT CXX20_RESULT EQUAL 0)
+  message(FATAL_ERROR "${SYSTEM_CXX_COMPILER} does not support C++20")
+endif()
+
 # Test 1: Custom keyword version (requires modified clang)
 add_executable(test_custom_serialization
   test_custom_simple.cpp
@@ -60,22 +91,23 @@ target_compile_options(test_custom_serialization PRIVATE
   -nostdlib++
 )
 
-# Test 2: TInCuP version (standard C++20)
-add_executable(test_tincup_serialization
-  test_tincup_real.cpp
+# Test 2: TInCuP version (standard C++20 - uses system compiler)
+# This is compiled separately to avoid using modified clang
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/test_tincup_serialization
+  COMMAND ${SYSTEM_CXX_COMPILER}
+    -std=c++20
+    -nostdlib++
+    -I${TINCUP_INCLUDE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_tincup_real.cpp
+    -o ${CMAKE_CURRENT_BINARY_DIR}/test_tincup_serialization
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/test_tincup_real.cpp
+  COMMENT "Building TInCuP version with ${SYSTEM_CXX_COMPILER}"
+  VERBATIM
 )
 
-target_include_directories(test_tincup_serialization PRIVATE
-  ${TINCUP_INCLUDE_DIR}
-)
-
-target_compile_options(test_tincup_serialization PRIVATE
-  -nostdlib++
-)
-
-set_target_properties(test_tincup_serialization PROPERTIES
-  CXX_STANDARD 20
-  CXX_STANDARD_REQUIRED ON
+add_custom_target(test_tincup_serialization_target ALL
+  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/test_tincup_serialization
 )
 
 # Create tests
@@ -87,7 +119,7 @@ add_test(NAME RunCustomVersion
 )
 
 add_test(NAME RunTInCuPVersion
-  COMMAND test_tincup_serialization
+  COMMAND ${CMAKE_CURRENT_BINARY_DIR}/test_tincup_serialization
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
@@ -95,22 +127,33 @@ add_test(NAME RunTInCuPVersion
 add_test(NAME CustomTInCuPEquivalence
   COMMAND ${CMAKE_COMMAND}
     -DCUSTOM_EXE=$<TARGET_FILE:test_custom_serialization>
-    -DTINCUP_EXE=$<TARGET_FILE:test_tincup_serialization>
+    -DTINCUP_EXE=${CMAKE_CURRENT_BINARY_DIR}/test_tincup_serialization
     -P ${CMAKE_CURRENT_SOURCE_DIR}/run_equivalence_test.cmake
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+# Make sure TInCuP binary is built before running tests
+add_dependencies(test_custom_serialization test_tincup_serialization_target)
+
 # Install test binaries (optional)
-install(TARGETS test_custom_serialization test_tincup_serialization
-  RUNTIME DESTINATION bin/examples
+install(PROGRAMS
+  $<TARGET_FILE:test_custom_serialization>
+  ${CMAKE_CURRENT_BINARY_DIR}/test_tincup_serialization
+  DESTINATION bin/examples
 )
 
 # Configuration summary
 message(STATUS "")
 message(STATUS "Custom vs TInCuP Regression Test Configuration:")
-message(STATUS "  C++ Compiler: ${CMAKE_CXX_COMPILER}")
+message(STATUS "  Custom compiler: ${CMAKE_CXX_COMPILER}")
+message(STATUS "  TInCuP compiler: ${SYSTEM_CXX_COMPILER}")
 message(STATUS "  C++ Standard: C++20")
 message(STATUS "  TInCuP Headers: ${TINCUP_INCLUDE_DIR}")
 message(STATUS "  Custom Test: test_custom_serialization")
 message(STATUS "  TInCuP Test: test_tincup_serialization")
+message(STATUS "")
+message(STATUS "This demonstrates that:")
+message(STATUS "  - Custom version requires modified clang")
+message(STATUS "  - TInCuP version works with ANY C++20 compiler")
+message(STATUS "  - Both produce identical runtime behavior")
 message(STATUS "")
