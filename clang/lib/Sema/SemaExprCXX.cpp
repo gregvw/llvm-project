@@ -7911,7 +7911,8 @@ Sema::BuildExprRequirement(
     if (!HasError) {
       SubstitutedConstraintExpr =
           cast<ConceptSpecializationExpr>(Constraint.get());
-      if (SubstitutedConstraintExpr->getSatisfaction().ContainsErrors)
+      if (!SubstitutedConstraintExpr->isValueDependent() &&
+          SubstitutedConstraintExpr->getSatisfaction().ContainsErrors)
         HasError = true;
     }
     if (HasError) {
@@ -7923,8 +7924,15 @@ Sema::BuildExprRequirement(
                             }),
           IsSimple, NoexceptLoc, CustomLoc, ReturnTypeRequirement);
     }
-    if (!SubstitutedConstraintExpr->isSatisfied())
+    // Only pass SubstitutedConstraintExpr if it's not value-dependent
+    // The assertion in ExprRequirement constructor requires SubstitutedConstraintExpr
+    // to be non-null only when Status > SS_TypeRequirementSubstitutionFailure
+    if (SubstitutedConstraintExpr->isValueDependent()) {
+      // For dependent constraints, we can't check satisfaction yet
+      SubstitutedConstraintExpr = nullptr;
+    } else if (!SubstitutedConstraintExpr->isSatisfied()) {
       Status = concepts::ExprRequirement::SS_ConstraintsNotSatisfied;
+    }
   }
   return new (Context) concepts::ExprRequirement(E, IsSimple, NoexceptLoc,
                                                  CustomLoc, ReturnTypeRequirement,

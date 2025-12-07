@@ -1,0 +1,12 @@
+# Build artifacts
+test_custom_simple
+test_tincup_simple
+test_custom
+test_tincup
+
+# Test outputs
+output_custom*.txt
+output_tincup*.txt
+
+# Generated files
+serialize_tincup_generated.hpp
